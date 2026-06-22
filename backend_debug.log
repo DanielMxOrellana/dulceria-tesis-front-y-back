@@ -1,0 +1,5 @@
+--- Starting Debug Session: 2026-06-21T21:53:59.580Z ---
+Conexion PostgreSQL y esquema de pedidos listos.
+ERROR: Aviso INVENTORY: ENOENT: no such file or directory, open 'C:\tesispaul\dulceria\src\data\productos.js'
+ERROR: Backend ya esta ejecutandose en http://localhost:4000
+Backend process exited with code 0
