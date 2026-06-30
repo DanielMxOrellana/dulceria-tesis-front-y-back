@@ -28,6 +28,7 @@ export function AppProvider({ children }) {
   const [apiError, setApiError] = useState('');
   const [orderDraft, setOrderDraft] = useState({
     packagingType: 'fundas',
+    preferredPackagingType: 'fundas',
     packagingId: '',
     customer: {
       name: '',
@@ -63,6 +64,29 @@ export function AppProvider({ children }) {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    setCart(prev => {
+      let changed = false;
+      const next = prev
+        .map(item => {
+          const stock = Math.max(0, products.find(p => Number(p.id) === Number(item.productId))?.stock ?? 0);
+          if (item.qty > stock) {
+            changed = true;
+            return { ...item, qty: stock };
+          }
+          return item;
+        })
+        .filter(item => {
+          if (item.qty <= 0) {
+            changed = true;
+            return false;
+          }
+          return true;
+        });
+      return changed ? next : prev;
+    });
+  }, [products]);
+
   const syncApi = (operation) => {
     if (!hasApi) return;
     operation().then((res) => {
@@ -96,6 +120,7 @@ export function AppProvider({ children }) {
     setCart([]);
     setOrderDraft({
       packagingType: 'fundas',
+      preferredPackagingType: 'fundas',
       packagingId: '',
       customer: { name: '', phone: '', address: '', reference: '' },
       notes: '',
@@ -204,10 +229,35 @@ export function AppProvider({ children }) {
 
   // Cart
   const addToCart = (product, qty = 1) => {
+    const productId = product.id ?? product.productId;
+    const catalogProduct = products.find(p => p.id === productId);
+    const stock = Math.max(0, catalogProduct?.stock ?? 0);
+
+    if (qty > 0 && (!catalogProduct?.available || stock === 0)) return;
+
     setCart(prev => {
-      const existing = prev.find(i => i.productId === product.id);
-      if (existing) return prev.map(i => i.productId === product.id ? { ...i, qty: i.qty + qty } : i);
-      return [...prev, { productId: product.id, name: product.name, price: product.price, qty, image: product.image }];
+      const existing = prev.find(i => i.productId === productId);
+      const currentQty = existing?.qty ?? 0;
+      const nextQty = currentQty + qty;
+
+      if (nextQty <= 0) {
+        return prev.filter(i => i.productId !== productId);
+      }
+
+      const cappedQty = Math.min(nextQty, stock);
+      if (cappedQty <= 0) return prev;
+
+      if (existing) {
+        return prev.map(i => i.productId === productId ? { ...i, qty: cappedQty } : i);
+      }
+
+      return [...prev, {
+        productId,
+        name: product.name,
+        price: product.price,
+        qty: cappedQty,
+        image: product.image,
+      }];
     });
   };
 
@@ -227,6 +277,7 @@ export function AppProvider({ children }) {
 
   const resetOrderDraft = () => setOrderDraft({
     packagingType: 'fundas',
+    preferredPackagingType: 'fundas',
     packagingId: '',
     customer: { name: '', phone: '', address: '', reference: '', cedula: '', city: 'Quito' },
     notes: '',
@@ -235,10 +286,68 @@ export function AppProvider({ children }) {
   const cartTotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
 
-  // Orders
+  const normalizeOrderStatus = (status) => {
+    const value = String(status || '').trim().toLowerCase();
+    const map = {
+      pending: 'pendiente',
+      pendiente: 'pendiente',
+      confirmed: 'aceptado',
+      aceptado: 'aceptado',
+      confirmado: 'aceptado',
+      preparado: 'en preparacion',
+      'en preparacion': 'en preparacion',
+      ready: 'listo',
+      listo: 'listo',
+      delivered: 'entregado',
+      entregado: 'entregado',
+      rejected: 'rechazado',
+      rechazado: 'rechazado',
+      cancelled: 'cancelado',
+      cancelado: 'cancelado',
+    };
+    return map[value] || value;
+  };
+
+  const resolveOrderDbId = (order) => {
+    if (order?.dbId != null) {
+      const dbId = Number(order.dbId);
+      if (Number.isInteger(dbId) && dbId > 0) return dbId;
+    }
+
+    const match = String(order?.id || '').match(/PED-0*(\d+)$/i);
+    if (match) return Number(match[1]);
+
+    const numericId = Number(order?.id);
+    return Number.isInteger(numericId) && numericId > 0 ? numericId : null;
+  };
+
+  const restoreLocalStockForOrder = (orderItems = []) => {
+    setProducts(prev => prev.map(p => {
+      const item = orderItems.find(i => Number(i.productId) === Number(p.id));
+      if (!item) return p;
+      const newStock = Number(p.stock) + Number(item.qty);
+      return { ...p, stock: newStock, available: newStock > 0 };
+    }));
+  };
+
+  const refreshProductsFromApi = async () => {
+    if (!hasApi) return;
+    const apiProducts = await api.getProducts();
+    if (Array.isArray(apiProducts)) setProducts(apiProducts);
+  };
+
   const createOrder = async (orderData = {}) => {
     const { notes = '', packaging = null, customer = {} } = typeof orderData === 'string' ? { notes: orderData } : orderData;
     if (!cart.length) return { error: 'El carrito está vacío' };
+
+    for (const item of cart) {
+      const product = products.find(p => p.id === item.productId);
+      if (!product?.available || product.stock < item.qty) {
+        return {
+          error: `Stock insuficiente para "${item.name}". Disponible: ${product?.stock ?? 0}`,
+        };
+      }
+    }
 
     const packagingTotal = packaging?.precio ?? 0;
     const clientName = customer.name?.trim() || currentUser.name;
@@ -283,7 +392,12 @@ export function AppProvider({ children }) {
           clientName,
           customer: { ...customer, name: clientName },
           packaging,
-          items: cart.map(i => ({ productId: i.id, name: i.name, qty: i.qty, price: i.price })),
+          items: cart.map(i => ({
+            productId: i.productId,
+            name: i.name,
+            qty: i.qty,
+            price: i.price,
+          })),
           productTotal: cartTotal,
           packagingTotal,
           total: cartTotal + packagingTotal,
@@ -294,10 +408,17 @@ export function AppProvider({ children }) {
 
         setOrders(prev => [newOrder, ...prev]);
 
-        // Reduce stock locally
-        cart.forEach(item => {
-          setProducts(prev => prev.map(p => p.id === item.productId ? { ...p, stock: Math.max(0, p.stock - item.qty), available: Math.max(0, p.stock - item.qty) > 0 } : p));
-        });
+        if (hasApi) {
+          await refreshProductsFromApi();
+        } else {
+          cart.forEach(item => {
+            setProducts(prev => prev.map(p => {
+              if (Number(p.id) !== Number(item.productId)) return p;
+              const newStock = Math.max(0, Number(p.stock) - Number(item.qty));
+              return { ...p, stock: newStock, available: newStock > 0 };
+            }));
+          });
+        }
 
         clearCart();
         resetOrderDraft();
@@ -311,11 +432,46 @@ export function AppProvider({ children }) {
     }
   };
 
-  const updateOrderStatus = (orderId, status) => {
+  const updateOrderStatus = async (orderId, status) => {
     const order = orders.find(o => o.id === orderId);
-    const dbId = order?.dbId || orderId;
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-    syncApi(() => api.updateOrder(dbId, { status }));
+    if (!order) return { error: 'Pedido no encontrado' };
+
+    const normalizedStatus = normalizeOrderStatus(status);
+    const normalizedPrevious = normalizeOrderStatus(order.status);
+    const dbId = resolveOrderDbId(order);
+    const previousStatus = order.status;
+
+    const shouldRestoreStock =
+      ['rechazado', 'cancelado'].includes(normalizedStatus) &&
+      !['rechazado', 'cancelado', 'entregado'].includes(normalizedPrevious);
+
+    setOrders(prev => prev.map(o => (
+      o.id === orderId ? { ...o, status: normalizedStatus } : o
+    )));
+
+    if (!hasApi || !dbId) {
+      if (shouldRestoreStock && order.items?.length) {
+        restoreLocalStockForOrder(order.items);
+      }
+      return { success: true };
+    }
+
+    try {
+      await api.updateOrder(dbId, { status: normalizedStatus });
+      setApiError('');
+
+      if (shouldRestoreStock) {
+        await refreshProductsFromApi();
+      }
+
+      return { success: true };
+    } catch (error) {
+      setOrders(prev => prev.map(o => (
+        o.id === orderId ? { ...o, status: previousStatus } : o
+      )));
+      setApiError(error.message || 'No se pudo sincronizar con el backend. Revisa que la API este activa.');
+      return { error: error.message || 'No se pudo actualizar el pedido.' };
+    }
   };
 
   // Users (Admin)

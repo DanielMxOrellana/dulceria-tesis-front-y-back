@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { ClipboardList } from 'lucide-react';
 import { STATUS_COLORS } from '../data/mockData';
-
-const STATUS_STEPS = ['pendiente', 'aceptado', 'en preparacion', 'listo', 'entregado'];
+import { getOrderProgressWidth, getOrderStepIndex, normalizeOrderStatusLabel, ORDER_STATUS_STEPS } from '../utils/orderFlow';
 
 export default function MyOrdersPage() {
   const { orders, currentUser } = useApp();
@@ -12,7 +11,10 @@ export default function MyOrdersPage() {
 
   const myOrders = orders.filter(o => o.clientId === currentUser?.id);
 
-  const stepIndex = (status) => STATUS_STEPS.indexOf(status);
+  const getStepIndex = (status) => {
+    const index = getOrderStepIndex(status);
+    return index >= 0 ? index : 0;
+  };
 
   return (
     <div>
@@ -37,7 +39,7 @@ export default function MyOrdersPage() {
                   <p style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>{o.date} · {o.items.length} productos</p>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span className={`badge ${STATUS_COLORS[o.status] || 'badge-gray'}`}>{o.status}</span>
+                  <span className={`badge ${STATUS_COLORS[normalizeOrderStatusLabel(o.status)] || 'badge-gray'}`}>{normalizeOrderStatusLabel(o.status)}</span>
                   <span style={{ fontWeight: 700, color: 'var(--pink-500)' }}>${o.total.toFixed(2)}</span>
                 </div>
               </div>
@@ -45,25 +47,29 @@ export default function MyOrdersPage() {
               {selected?.id === o.id && (
                 <div>
                   {/* Progress bar */}
-                  {o.status !== 'rechazado' && (
+                  {normalizeOrderStatusLabel(o.status) !== 'rechazado' && (
                     <div style={{ marginBottom: 22 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative' }}>
                         <div style={{ position: 'absolute', top: 14, left: '5%', right: '5%', height: 3, background: 'var(--gray-100)', borderRadius: 99 }}>
-                          <div style={{ height: '100%', background: 'var(--pink-500)', borderRadius: 99, width: `${Math.max(0, stepIndex(o.status)) / (STATUS_STEPS.length - 1) * 100}%`, transition: 'width 0.4s' }} />
+                          <div style={{ height: '100%', background: 'var(--pink-500)', borderRadius: 99, width: `${getOrderProgressWidth(o.status)}%`, transition: 'width 0.4s' }} />
                         </div>
-                        {STATUS_STEPS.map((s, i) => (
+                        {ORDER_STATUS_STEPS.map((s, i) => {
+                          const currentStep = getStepIndex(o.status);
+                          const isCompleted = i <= currentStep;
+                          return (
                           <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1, position: 'relative' }}>
-                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: i <= stepIndex(o.status) ? 'var(--pink-500)' : 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: i <= stepIndex(o.status) ? 'white' : 'var(--gray-300)', fontWeight: 700, border: `2px solid ${i <= stepIndex(o.status) ? 'var(--pink-500)' : 'var(--gray-200)'}`, zIndex: 1, background: i <= stepIndex(o.status) ? 'var(--pink-500)' : 'white' }}>
-                              {i < stepIndex(o.status) ? '✓' : i + 1}
+                            <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: isCompleted ? 'white' : 'var(--gray-300)', fontWeight: 700, border: `2px solid ${isCompleted ? 'var(--pink-500)' : 'var(--gray-200)'}`, zIndex: 1, background: isCompleted ? 'var(--pink-500)' : 'white' }}>
+                              {isCompleted ? '✓' : i + 1}
                             </div>
-                            <span style={{ fontSize: '0.68rem', color: i <= stepIndex(o.status) ? 'var(--pink-600)' : 'var(--gray-400)', fontWeight: i === stepIndex(o.status) ? 700 : 400, textAlign: 'center', whiteSpace: 'nowrap' }}>{s}</span>
+                            <span style={{ fontSize: '0.68rem', color: isCompleted ? 'var(--pink-600)' : 'var(--gray-400)', fontWeight: i === currentStep ? 700 : 400, textAlign: 'center', whiteSpace: 'nowrap' }}>{s}</span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
-                  {o.status === 'rechazado' && (
+                  {normalizeOrderStatusLabel(o.status) === 'rechazado' && (
                     <div style={{ background: '#fdecea', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16, color: 'var(--danger)', fontSize: '0.88rem' }}>
                       ❌ Tu pedido fue rechazado. Contacta con nosotros para más información.
                     </div>

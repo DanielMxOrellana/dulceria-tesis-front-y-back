@@ -39,6 +39,8 @@ export default function Layout({ children }) {
 
   const isAdmin = currentUser?.role === 'admin';
   const isVendor = currentUser?.role === 'vendor';
+  const isClient = currentUser?.role === 'cliente';
+
   const navItems = isAdmin ? adminNav : isVendor ? vendorNav : clientNav;
   const vendorLowStockCount = products.filter(
     (product) => product.vendorId === currentUser?.id && product.stock > 0 && product.stock <= product.minStock

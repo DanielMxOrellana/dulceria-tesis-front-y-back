@@ -113,6 +113,9 @@ router.post("/", async (req, res) => {
     if (!candy_id || !candy_name || price === undefined) {
       return res.status(400).json({ ok: false, error: "candy_id, candy_name y price son requeridos" });
     }
+    if (Number(price) <= 0) {
+      return res.status(400).json({ ok: false, error: "El precio debe ser mayor a 0." });
+    }
 
     await withConnection(async (conn) => {
       const insertSQL = `
@@ -146,6 +149,10 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { candy_name, description, category, image_url, quantity, price, available, min_stock, minStock } = req.body;
+
+    if (price !== undefined && Number(price) <= 0) {
+      return res.status(400).json({ ok: false, error: "El precio debe ser mayor a 0." });
+    }
 
     await withConnection(async (conn) => {
       // Verificar que existe

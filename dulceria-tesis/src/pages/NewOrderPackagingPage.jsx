@@ -2,28 +2,32 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { ALL_PACKAGING_OPTIONS, ORDER_STEPS, PACKAGING_TYPES, getBestPackageForCount, getBestPackageForType, getPackagingsForType } from '../utils/orderFlow';
+import { ORDER_STEPS, PACKAGING_TYPES, getBestPackageForType, getPackagingsForType, resolveSelectedPackaging } from '../utils/orderFlow';
 
 export default function NewOrderPackagingPage() {
   const { cartCount, orderDraft, updateOrderDraft } = useApp();
   const navigate = useNavigate();
 
   const selectedType = orderDraft.packagingType || 'fundas';
-  const selectedPackaging = ALL_PACKAGING_OPTIONS.find(option => option.id === orderDraft.packagingId) || getBestPackageForCount(cartCount);
+  const selectedPackaging = resolveSelectedPackaging(orderDraft, cartCount);
   const packagingOptions = getPackagingsForType(selectedType);
 
   useEffect(() => {
-    const recommended = getBestPackageForType(selectedType, cartCount) || getBestPackageForCount(cartCount);
+    const recommended = getBestPackageForType(selectedType, cartCount);
     // Solo aplicar la recomendación si aún no se ha seleccionado manualmente un empaque
     if (recommended && !orderDraft.packagingId) {
-      updateOrderDraft({ packagingId: recommended.id });
+      updateOrderDraft({
+        packagingId: recommended.id,
+        preferredPackagingType: selectedType,
+      });
     }
   }, [cartCount, selectedType, updateOrderDraft, orderDraft.packagingId]);
 
   const selectType = (typeKey) => {
-    const recommended = getBestPackageForType(typeKey, cartCount) || getBestPackageForCount(cartCount);
+    const recommended = getBestPackageForType(typeKey, cartCount);
     updateOrderDraft({
       packagingType: typeKey,
+      preferredPackagingType: typeKey,
       packagingId: recommended?.id || '',
     });
   };
@@ -91,7 +95,10 @@ export default function NewOrderPackagingPage() {
                 <button
                   key={option.id}
                   type="button"
-                  onClick={() => updateOrderDraft({ packagingId: option.id })}
+                  onClick={() => updateOrderDraft({
+                    packagingId: option.id,
+                    preferredPackagingType: selectedType,
+                  })}
                   aria-pressed={isActive}
                   style={{
                     textAlign: 'left',

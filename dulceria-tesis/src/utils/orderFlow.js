@@ -26,15 +26,123 @@ export const getImageSrc = (image) => {
   return encodeURI(image);
 };
 
+export const getPackagingsForType = (typeKey) =>
+  (TIPOS_EMPAQUE[typeKey] || [])
+    .map(option => ({ ...option, tipo: typeKey }))
+    .sort((a, b) => a.capacidadMax - b.capacidadMax);
+
 export const getBestPackageForCount = (count) => {
   if (!ALL_PACKAGING_OPTIONS.length) return null;
   return ALL_PACKAGING_OPTIONS.find(option => count <= option.capacidadMax) || ALL_PACKAGING_OPTIONS[ALL_PACKAGING_OPTIONS.length - 1];
 };
 
 export const getBestPackageForType = (typeKey, count) => {
-  const options = (TIPOS_EMPAQUE[typeKey] || []).map(option => ({ ...option, tipo: typeKey }));
+  const options = getPackagingsForType(typeKey);
   if (!options.length) return null;
   return options.find(option => count <= option.capacidadMax) || options[options.length - 1];
 };
 
-export const getPackagingsForType = (typeKey) => (TIPOS_EMPAQUE[typeKey] || []).map(option => ({ ...option, tipo: typeKey }));
+const getMaxCapacityForType = (typeKey) => {
+  const options = getPackagingsForType(typeKey);
+  if (!options.length) return 0;
+  return options[options.length - 1].capacidadMax;
+};
+
+/** Busca en otros tipos el que tenga mayor capacidad máxima y elige el tamaño adecuado dentro de él. */
+export const getBestPackageFromOtherTypes = (typeKey, count) => {
+  const otherTypes = PACKAGING_TYPES
+    .filter(type => type.key !== typeKey)
+    .map(type => ({ key: type.key, maxCapacity: getMaxCapacityForType(type.key) }))
+    .filter(type => type.maxCapacity > 0)
+    .sort((a, b) => b.maxCapacity - a.maxCapacity);
+
+  for (const type of otherTypes) {
+    const option = getBestPackageForType(type.key, count);
+    if (option && count <= option.capacidadMax) return option;
+  }
+
+  if (otherTypes.length) {
+    return getBestPackageForType(otherTypes[0].key, count);
+  }
+
+  return getBestPackageForCount(count);
+};
+
+/** Tipo de empaque elegido por el cliente en el paso 1 (ancla del ajuste automático). */
+export const getPreferredPackagingType = (orderDraft) =>
+  orderDraft?.preferredPackagingType || orderDraft?.packagingType || 'fundas';
+
+/**
+ * Ajuste automático anclado al tipo preferido del cliente:
+ * - Mientras quepa en ese tipo, solo cambia de tamaño dentro del mismo.
+ * - Si supera el máximo del tipo preferido, cambia temporalmente a otro tipo mayor.
+ * - Al bajar productos, vuelve al tipo preferido si ya cabe de nuevo.
+ */
+export const getRecommendedPackaging = (orderDraft, count) => {
+  const preferredType = getPreferredPackagingType(orderDraft);
+
+  if (count <= 0) {
+    const options = getPackagingsForType(preferredType);
+    return options[0] || getPackagingsForType('fundas')[0] || null;
+  }
+
+  const preferredMax = getMaxCapacityForType(preferredType);
+
+  if (count <= preferredMax) {
+    return getBestPackageForType(preferredType, count);
+  }
+
+  return getBestPackageFromOtherTypes(preferredType, count);
+};
+
+export const resolveSelectedPackaging = (orderDraft, count) =>
+  getRecommendedPackaging(orderDraft, count);
+
+export const getOrderPackagingTotal = (order) =>
+  Number(order?.packaging?.precio ?? order?.packagingTotal ?? 0);
+
+export const ORDER_STATUS_STEPS = [
+  'pendiente',
+  'aceptado',
+  'en preparacion',
+  'listo',
+  'entregado',
+];
+
+export const normalizeOrderStatusLabel = (status) => {
+  const value = String(status || '').trim().toLowerCase();
+  const map = {
+    pending: 'pendiente',
+    pendiente: 'pendiente',
+    confirmed: 'aceptado',
+    aceptado: 'aceptado',
+    confirmado: 'aceptado',
+    preparado: 'en preparacion',
+    'en preparacion': 'en preparacion',
+    ready: 'listo',
+    listo: 'listo',
+    delivered: 'entregado',
+    entregado: 'entregado',
+    rejected: 'rechazado',
+    rechazado: 'rechazado',
+    cancelled: 'cancelado',
+    cancelado: 'cancelado',
+  };
+  return map[value] || value;
+};
+
+export const getOrderStepIndex = (status) => {
+  const normalized = normalizeOrderStatusLabel(status);
+  return ORDER_STATUS_STEPS.indexOf(normalized);
+};
+
+/** Ancho de la barra de progreso alineado con el centro de cada paso del timeline. */
+export const getOrderProgressWidth = (status, trackInsetPercent = 5) => {
+  const stepIndex = getOrderStepIndex(status);
+  if (stepIndex < 0) return 0;
+
+  const trackWidth = 100 - trackInsetPercent * 2;
+  const stepCenter = ((stepIndex + 0.5) / ORDER_STATUS_STEPS.length) * 100;
+
+  return Math.min(100, Math.max(0, ((stepCenter - trackInsetPercent) / trackWidth) * 100));
+};

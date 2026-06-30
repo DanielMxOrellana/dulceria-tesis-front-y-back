@@ -34,16 +34,16 @@ export const api = {
     const res = await request('/api/inventory');
     if (res && res.ok && Array.isArray(res.inventory)) {
       return res.inventory.map(p => ({
-        id: p.candy_id || p.CANDY_ID,
+        id: Number(p.candy_id || p.CANDY_ID),
         name: p.candy_name || p.CANDY_NAME,
         description: p.description || p.DESCRIPTION,
         category: p.category || p.CATEGORY || 'General',
         image: p.image_url || p.IMAGE_URL || '/img/dulces/logo.jpg',
-        stock: p.quantity || p.QUANTITY || 0,
+        stock: Number(p.quantity ?? p.QUANTITY ?? 0),
         price: Number(p.price || p.PRICE || 0),
         available: Boolean(p.available || p.AVAILABLE),
         vendorId: p.vendor_id || p.vendorId || p.VENDOR_ID,
-        minStock: p.min_stock || p.minStock || p.MIN_STOCK || 0
+        minStock: Number(p.min_stock || p.minStock || p.MIN_STOCK || 0)
       }));
     }
     return res;
@@ -64,7 +64,8 @@ export const api = {
           'preparado': 'en preparacion',
           'ready': 'listo',
           'delivered': 'entregado',
-          'cancelled': 'cancelado'
+          'rejected': 'rechazado',
+          'cancelled': 'cancelado',
         }[o.status?.toLowerCase()] || o.status || 'pendiente',
         clientName: o.customerName,
         customer: {
@@ -81,9 +82,9 @@ export const api = {
           precio: Number(o.containerPrice || 0)
         },
         items: (o.items || []).map(item => ({
-          productId: item.candyId,
+          productId: Number(item.candyId),
           name: item.candyName,
-          qty: item.quantity,
+          qty: Number(item.quantity ?? 0),
           price: Number(item.unitPrice || 0),
           subtotal: Number(item.subtotal || 0)
         })),
@@ -134,4 +135,18 @@ export const api = {
     method: 'PATCH',
     body: JSON.stringify(updates),
   }),
+  uploadImage: async (file) => {
+    if (!hasApi) return { ok: false, error: 'No API available' };
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const response = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      return await response.json();
+    } catch (err) {
+      return { ok: false, error: err.message || 'Error uploading file' };
+    }
+  },
 };

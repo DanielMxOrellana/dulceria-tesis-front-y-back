@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ClipboardList, ChevronDown } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import { STATUS_COLORS, ORDER_STATUSES } from '../data/mockData';
 
 export default function OrdersAdmin() {
-  const { orders, updateOrderStatus } = useApp();
+  const { orders } = useApp();
   const [filter, setFilter] = useState('todos');
   const [selected, setSelected] = useState(null);
 
@@ -36,7 +36,7 @@ export default function OrdersAdmin() {
               <div className="empty-state"><ClipboardList size={40} /><p>No hay pedidos</p></div>
             ) : (
               <table>
-                <thead><tr><th>ID</th><th>Cliente</th><th>Items</th><th>Total</th><th>Estado</th><th>Fecha</th><th>Acción</th></tr></thead>
+                <thead><tr><th>ID</th><th>Cliente</th><th>Items</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
                 <tbody>
                   {filtered.map(o => (
                     <tr key={o.id} onClick={() => setSelected(o)} style={{ cursor: 'pointer' }}>
@@ -46,15 +46,6 @@ export default function OrdersAdmin() {
                       <td style={{ fontWeight: 600 }}>${o.total.toFixed(2)}</td>
                       <td><span className={`badge ${STATUS_COLORS[o.status] || 'badge-gray'}`}>{o.status}</span></td>
                       <td style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>{o.date}</td>
-                      <td onClick={e => e.stopPropagation()}>
-                        <select
-                          value={o.status}
-                          onChange={e => updateOrderStatus(o.id, e.target.value)}
-                          style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid var(--gray-200)', fontSize: '0.82rem', background: 'var(--gray-50)', outline: 'none', cursor: 'pointer' }}
-                        >
-                          {ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -117,18 +108,6 @@ export default function OrdersAdmin() {
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 0', marginTop: 8 }}>
               <span style={{ fontWeight: 700 }}>Total</span>
               <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--pink-500)' }}>${selected.total.toFixed(2)}</span>
-            </div>
-
-            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cambiar estado</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {ORDER_STATUSES.map(s => (
-                  <button key={s} onClick={() => { updateOrderStatus(selected.id, s); setSelected({ ...selected, status: s }); }}
-                    style={{ padding: '5px 12px', borderRadius: 99, border: `1.5px solid ${selected.status === s ? 'var(--pink-400)' : 'var(--gray-200)'}`, background: selected.status === s ? 'var(--pink-100)' : 'white', color: selected.status === s ? 'var(--pink-600)' : 'var(--gray-500)', fontSize: '0.8rem', fontWeight: selected.status === s ? 700 : 400, cursor: 'pointer', textTransform: 'capitalize' }}>
-                    {s}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         )}

@@ -62,11 +62,11 @@ export default function CatalogPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18 }}>
           {filtered.map(p => (
-            <div key={p.id} className="card" style={{ cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s' }}
+            <div key={p.id} className="card catalog-product-card" style={{ cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', height: '100%' }}
               onClick={() => openDetail(p)}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
               onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
-              <div style={{ background: 'linear-gradient(135deg, var(--pink-100), var(--brown-100))', padding: '18px', height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="catalog-product-card__image" style={{ background: 'linear-gradient(135deg, var(--pink-100), var(--brown-100))', padding: '18px', height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <img
                   src={getImageSrc(p.image)}
                   alt={p.name}
@@ -74,17 +74,20 @@ export default function CatalogPage() {
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '18px', display: 'block' }}
                 />
               </div>
-              <div style={{ padding: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                  <h3 style={{ fontSize: '0.95rem', fontFamily: 'var(--font-display)' }}>{p.name}</h3>
-                  <span style={{ fontWeight: 700, color: 'var(--pink-500)', whiteSpace: 'nowrap', marginLeft: 8 }}>${p.price.toFixed(2)}</span>
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                  <div className="product-name-tooltip">
+                    <h3 className="product-name-clamp" style={{ fontSize: '0.95rem', fontFamily: 'var(--font-display)' }}>{p.name}</h3>
+                    <span className="product-name-tooltip__popup" role="tooltip">{p.name}</span>
+                  </div>
+                  <span style={{ fontWeight: 700, color: 'var(--pink-500)', whiteSpace: 'nowrap', flexShrink: 0 }}>${p.price.toFixed(2)}</span>
                 </div>
                 <p style={{ fontSize: '0.78rem', color: 'var(--gray-400)', marginBottom: 10 }}>{p.category}</p>
                 <p style={{ fontSize: '0.82rem', color: 'var(--gray-500)', marginBottom: 10 }}>Stock: {p.stock} · {p.available ? 'Disponible' : 'Agotado'}</p>
                 {!p.available ? (
-                  <span className="badge badge-danger" style={{ width: '100%', justifyContent: 'center', display: 'flex' }}>Agotado</span>
+                  <span className="badge badge-danger" style={{ width: '100%', justifyContent: 'center', display: 'flex', marginTop: 'auto' }}>Agotado</span>
                 ) : (
-                  <span className="badge badge-success" style={{ width: '100%', justifyContent: 'center', display: 'flex' }}>Disponible</span>
+                  <span className="badge badge-success" style={{ width: '100%', justifyContent: 'center', display: 'flex', marginTop: 'auto' }}>Disponible</span>
                 )}
               </div>
             </div>

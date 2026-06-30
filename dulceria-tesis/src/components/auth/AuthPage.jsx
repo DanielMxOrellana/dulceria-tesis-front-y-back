@@ -83,12 +83,6 @@ export default function AuthPage() {
     }
   };
 
-  const demo = (selectedRole) => {
-    if (selectedRole === 'admin') login('admin@dulceria.com', '123456');
-    else if (selectedRole === 'vendor') login('sweetdreams@vendor.com', '123456');
-    else login('maria@email.com', '123456');
-  };
-
   return (
     <div className="auth-page">
       <div
@@ -188,21 +182,6 @@ export default function AuthPage() {
             <div className="auth-switch">
               ¿Ya tienes cuenta? <button onClick={() => changeMode('login')}>Inicia sesión</button>
             </div>
-          )}
-
-          {mode === 'login' && (
-            <>
-              <div className="auth-divider"><span>o</span></div>
-              <div className="demo-btns">
-                <p className="demo-label">Acceso de demostración:</p>
-                <div className="demo-row">
-                  <button className="btn btn-secondary" type="button" onClick={() => demo('admin')}>Admin</button>
-                  <button className="btn btn-secondary" type="button" onClick={() => demo('client')}>Cliente</button>
-                  <button className="btn btn-secondary" type="button" onClick={() => demo('vendor')}>Vendedor</button>
-                </div>
-                <p className="demo-note">Contraseña: 123456</p>
-              </div>
-            </>
           )}
         </section>
       </main>

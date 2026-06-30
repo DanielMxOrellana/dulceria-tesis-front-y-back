@@ -226,63 +226,6 @@
   background: var(--primary-dark);
 }
 
-.auth-divider {
-  width: 100%;
-  text-align: center;
-  position: relative;
-  margin: 24px 0 18px;
-}
-
-.auth-divider::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: #ead7c9;
-}
-
-.auth-divider span {
-  position: relative;
-  background: white;
-  padding: 0 16px;
-  color: #cfa88e;
-  font-size: 0.9rem;
-}
-
-.demo-btns {
-  width: 100%;
-  text-align: center;
-}
-
-.demo-label {
-  color: #9b6a47;
-  font-size: 0.9rem;
-  margin-bottom: 12px;
-}
-
-.demo-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.demo-row .btn {
-  border-radius: 14px;
-  border-color: #f2cfa9;
-  background: #fff7ee;
-  color: #9b5f2e;
-  font-weight: 800;
-}
-
-.demo-note {
-  color: #c58a6b;
-  font-size: 0.85rem;
-}
-
 .auth-switch {
   margin-top: 24px;
   text-align: center;

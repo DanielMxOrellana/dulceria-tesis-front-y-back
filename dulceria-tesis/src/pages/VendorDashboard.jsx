@@ -16,6 +16,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { CATEGORIES, STATUS_COLORS } from '../data/mockData';
+import { getOrderPackagingTotal } from '../utils/orderFlow';
+import { api } from '../services/api';
 import './VendorDashboard.css';
 
 const EMPTY_FORM = {
@@ -48,6 +50,11 @@ export default function VendorDashboard({ section = 'dashboard' }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [error, setError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [warnings, setWarnings] = useState([]);
+  const [showWarningsModal, setShowWarningsModal] = useState(false);
+  const [pendingProductData, setPendingProductData] = useState(null);
+  const [rejectConfirmOrder, setRejectConfirmOrder] = useState(null);
 
   const vendorProducts = useMemo(
     () => products.filter((product) => product.vendorId === currentUser?.id),
@@ -63,12 +70,16 @@ export default function VendorDashboard({ section = 'dashboard' }) {
     return orders
       .map((order) => {
         const vendorItems = order.items.filter((item) => vendorProductIds.has(item.productId));
-        const vendorTotal = vendorItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+        const vendorItemsTotal = vendorItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+        const packagingTotal = getOrderPackagingTotal(order);
+        const vendorTotal = vendorItemsTotal + packagingTotal;
         const client = users.find((user) => user.id === order.clientId);
 
         return {
           ...order,
           vendorItems,
+          vendorItemsTotal,
+          packagingTotal,
           vendorTotal,
           clientEmail: client?.email || 'No registrado',
           customer: {
@@ -82,11 +93,16 @@ export default function VendorDashboard({ section = 'dashboard' }) {
       .filter((order) => order.vendorItems.length > 0);
   }, [orders, users, vendorProductIds]);
 
+  const deliveredVendorOrders = useMemo(
+    () => vendorOrders.filter((order) => order.status === 'entregado'),
+    [vendorOrders]
+  );
+
   const lowStockProducts = vendorProducts.filter(
     (product) => product.stock > 0 && product.stock <= product.minStock
   );
   const outOfStockProducts = vendorProducts.filter((product) => product.stock === 0);
-  const totalSales = vendorOrders.reduce((sum, order) => sum + order.vendorTotal, 0);
+  const totalSales = deliveredVendorOrders.reduce((sum, order) => sum + order.vendorTotal, 0);
   const pendingOrders = vendorOrders.filter((order) => order.status === 'pendiente').length;
 
   const stats = [
@@ -151,6 +167,26 @@ export default function VendorDashboard({ section = 'dashboard' }) {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setError('');
+    try {
+      const response = await api.uploadImage(file);
+      if (response && response.ok) {
+        handleFormChange('image', response.imageUrl);
+      } else {
+        setError(response?.error || 'Falló la subida de la imagen.');
+      }
+    } catch (err) {
+      setError('Error al subir la imagen.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -163,10 +199,21 @@ export default function VendorDashboard({ section = 'dashboard' }) {
       return;
     }
 
-    if (price < 0 || stock < 0 || minStock < 0) {
-      setError('Los valores numericos no pueden ser negativos.');
+    if (price <= 0) {
+      setError('El precio debe ser mayor a 0.');
       return;
     }
+
+    if (stock < 0 || minStock < 0) {
+      setError('Los valores numéricos no pueden ser negativos.');
+      return;
+    }
+
+    const currentWarnings = [];
+    if (stock === 0) currentWarnings.push("El stock actual es 0 (el producto aparecerá como agotado).");
+    if (minStock === 0 || Number.isNaN(minStock)) currentWarnings.push("El stock mínimo es 0 (no recibirás alertas de reabastecimiento).");
+    if (!form.description || !form.description.trim()) currentWarnings.push("No has agregado una descripción.");
+    if (!form.image || form.image.trim() === '/img/dulces/logo.jpg' || form.image.trim() === '') currentWarnings.push("No has adjuntado una imagen personalizada.");
 
     const productData = {
       name: form.name.trim(),
@@ -182,11 +229,25 @@ export default function VendorDashboard({ section = 'dashboard' }) {
       available: stock > 0,
     };
 
+    if (currentWarnings.length > 0) {
+      setWarnings(currentWarnings);
+      setPendingProductData(productData);
+      setShowWarningsModal(true);
+      return;
+    }
+
+    executeSave(productData);
+  };
+
+  const executeSave = (productData) => {
     if (editingId) updateProduct(editingId, productData);
     else addProduct(productData);
 
     resetForm();
     setShowForm(false);
+    setShowWarningsModal(false);
+    setPendingProductData(null);
+    setWarnings([]);
   };
 
   const handleStockChange = (productId, value) => {
@@ -204,6 +265,20 @@ export default function VendorDashboard({ section = 'dashboard' }) {
     setSelectedOrder((current) => (current?.id === order.id ? { ...current, status } : current));
   };
 
+  const liveSelectedOrder = selectedOrder
+    ? vendorOrders.find((order) => order.id === selectedOrder.id) || selectedOrder
+    : null;
+
+  const requestRejectOrder = (order) => {
+    setRejectConfirmOrder(order);
+  };
+
+  const confirmRejectOrder = () => {
+    if (!rejectConfirmOrder) return;
+    updateOrder(rejectConfirmOrder, 'rechazado');
+    setRejectConfirmOrder(null);
+  };
+
   const renderOrderActions = (order) => (
     <div className="actions-cell">
       {order.status === 'pendiente' && (
@@ -211,7 +286,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
           <button className="btn btn-success btn-sm" onClick={() => updateOrder(order, 'aceptado')}>
             <CheckCircle2 size={14} /> Aceptar
           </button>
-          <button className="btn btn-danger btn-sm" onClick={() => updateOrder(order, 'rechazado')}>
+          <button className="btn btn-danger btn-sm" onClick={() => requestRejectOrder(order)}>
             <XCircle size={14} /> Rechazar
           </button>
         </>
@@ -312,8 +387,14 @@ export default function VendorDashboard({ section = 'dashboard' }) {
               <input type="number" min="0" value={form.minStock} onChange={(event) => handleFormChange('minStock', event.target.value)} placeholder="10" />
             </div>
             <div className="form-group">
-              <label>Imagen o ruta</label>
-              <input value={form.image} onChange={(event) => handleFormChange('image', event.target.value)} placeholder="/img/dulces/producto.png" />
+              <label>Imagen del producto</label>
+              <input type="file" accept="image/*" onChange={handleImageUpload} />
+              {isUploading && <span style={{ color: 'var(--primary)' }}>Subiendo imagen...</span>}
+              {form.image && !isUploading && (
+                <div style={{ marginTop: '10px' }}>
+                  <img src={form.image} alt="Vista previa" style={{ maxWidth: '100px', borderRadius: '8px' }} />
+                </div>
+              )}
             </div>
             <div className="form-group form-group--wide">
               <label>Descripcion</label>
@@ -377,7 +458,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                     <th>Pedido</th>
                     <th>Cliente</th>
                     <th>Productos</th>
-                    <th>Total vendedor</th>
+                    <th>Total pedido</th>
                     <th>Estado</th>
                     <th>Fecha</th>
                     <th>Acciones</th>
@@ -561,11 +642,11 @@ export default function VendorDashboard({ section = 'dashboard' }) {
               </thead>
               <tbody>
                 {vendorProducts.map((product) => {
-                  const soldQty = vendorOrders.reduce((sum, order) => {
+                  const soldQty = deliveredVendorOrders.reduce((sum, order) => {
                     const item = order.vendorItems.find((i) => i.productId === product.id);
                     return sum + (item ? item.qty : 0);
                   }, 0);
-                  const revenue = vendorOrders.reduce((sum, order) => {
+                  const revenue = deliveredVendorOrders.reduce((sum, order) => {
                     const item = order.vendorItems.find((i) => i.productId === product.id);
                     return sum + (item ? item.qty * item.price : 0);
                   }, 0);
@@ -591,13 +672,13 @@ export default function VendorDashboard({ section = 'dashboard' }) {
       )}
 
 
-      {selectedOrder && (
+      {liveSelectedOrder && (
         <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
-                <h2>Pedido {selectedOrder.id}</h2>
-                <p className="section-subtitle">Fecha: {selectedOrder.date} | Estado: {selectedOrder.status}</p>
+                <h2>Pedido {liveSelectedOrder.id}</h2>
+                <p className="section-subtitle">Fecha: {liveSelectedOrder.date} | Estado: {liveSelectedOrder.status}</p>
               </div>
               <button className="btn btn-secondary" onClick={() => setSelectedOrder(null)}><X size={16} /> Cerrar</button>
             </div>
@@ -606,30 +687,101 @@ export default function VendorDashboard({ section = 'dashboard' }) {
               <div className="customer-panel">
                 <h3>Informacion del cliente</h3>
                 <div className="customer-grid">
-                  <p><strong>Nombre:</strong> {selectedOrder.customer.name}</p>
-                  <p><strong>Correo:</strong> {selectedOrder.clientEmail}</p>
-                  <p><strong>Telefono:</strong> {selectedOrder.customer.phone}</p>
-                  <p><strong>Direccion:</strong> {selectedOrder.customer.address}</p>
-                  <p className="customer-grid__wide"><strong>Referencia:</strong> {selectedOrder.customer.reference}</p>
-                  <p className="customer-grid__wide"><strong>Notas:</strong> {selectedOrder.notes || 'Sin notas'}</p>
+                  <p><strong>Nombre:</strong> {liveSelectedOrder.customer.name}</p>
+                  <p><strong>Correo:</strong> {liveSelectedOrder.clientEmail}</p>
+                  <p><strong>Telefono:</strong> {liveSelectedOrder.customer.phone}</p>
+                  <p><strong>Direccion:</strong> {liveSelectedOrder.customer.address}</p>
+                  <p className="customer-grid__wide"><strong>Referencia:</strong> {liveSelectedOrder.customer.reference}</p>
+                  <p className="customer-grid__wide"><strong>Notas:</strong> {liveSelectedOrder.notes || 'Sin notas'}</p>
                 </div>
               </div>
 
               <div>
                 <h3>Productos del pedido</h3>
                 <div className="order-items">
-                  {selectedOrder.vendorItems.map((item) => (
-                    <div key={`${selectedOrder.id}-${item.productId}`} className="order-item-row">
+                  {liveSelectedOrder.vendorItems.map((item) => (
+                    <div key={`${liveSelectedOrder.id}-${item.productId}`} className="order-item-row">
                       <span>{item.name}</span>
                       <span>{item.qty} x {money(item.price)} = {money(item.qty * item.price)}</span>
                     </div>
                   ))}
+                  {liveSelectedOrder.packagingTotal > 0 && (
+                    <div className="order-item-row">
+                      <span>Empaque{liveSelectedOrder.packaging?.nombre ? `: ${liveSelectedOrder.packaging.nombre}` : ''}</span>
+                      <span>{money(liveSelectedOrder.packagingTotal)}</span>
+                    </div>
+                  )}
+                  <div className="order-item-row" style={{ fontWeight: 700, borderTop: '1px solid var(--gray-100)', paddingTop: 10, marginTop: 6 }}>
+                    <span>Total</span>
+                    <span>{money(liveSelectedOrder.vendorTotal)}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="modal-footer">
-              {renderOrderActions(selectedOrder)}
+              {renderOrderActions(liveSelectedOrder)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rejectConfirmOrder && (
+        <div className="modal-overlay" onClick={() => setRejectConfirmOrder(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Rechazar pedido</h2>
+              <button className="btn btn-secondary btn-sm" onClick={() => setRejectConfirmOrder(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: 12 }}>
+                ¿Confirmas que deseas rechazar el pedido <strong>{rejectConfirmOrder.id}</strong> de{' '}
+                <strong>{rejectConfirmOrder.customer.name}</strong>?
+              </p>
+              <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: 0 }}>
+                El stock de los productos incluidos se repondrá automáticamente en el inventario.
+              </p>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setRejectConfirmOrder(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-danger" onClick={confirmRejectOrder}>
+                <XCircle size={14} /> Sí, rechazar pedido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWarningsModal && (
+        <div className="modal-overlay" onClick={() => setShowWarningsModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Advertencias en el producto</h2>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowWarningsModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="alert alert-warning" style={{ marginBottom: '16px' }}>
+                <AlertTriangle size={24} style={{ marginBottom: '8px', color: 'var(--warning)' }} />
+                <p><strong>Estás a punto de guardar este producto con los siguientes detalles:</strong></p>
+                <ul style={{ paddingLeft: '20px', marginTop: '10px' }}>
+                  {warnings.map((w, index) => <li key={index}>{w}</li>)}
+                </ul>
+                <p style={{ marginTop: '12px' }}>¿Deseas corregirlos o prefieres continuar de todos modos?</p>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setShowWarningsModal(false)}>
+                Cancelar y corregir
+              </button>
+              <button className="btn btn-warning" onClick={() => executeSave(pendingProductData)}>
+                Confirmar y guardar
+              </button>
             </div>
           </div>
         </div>

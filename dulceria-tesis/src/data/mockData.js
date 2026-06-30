@@ -75,12 +75,12 @@ export const tiposDesechables = TIPOS_EMPAQUE.desechables;
 export const tiposCanastos = TIPOS_EMPAQUE.canastos;
 
 export const ORDERS_INITIAL = [
-  { id: 'PED-001', clientId: 2, clientName: 'María García', items: [{productId: 1, name: 'Macarons de Rosas', qty: 4, price: 2.50},{productId: 5, name: 'Cupcake Red Velvet', qty: 2, price: 3.50}], total: 17.00, status: 'pendiente', date: '2024-06-01', notes: 'Para cumpleaños' },
-  { id: 'PED-002', clientId: 3, clientName: 'Carlos López', items: [{productId: 4, name: 'Bombones Surtidos', qty: 1, price: 12.00}], total: 12.00, status: 'aceptado', date: '2024-06-01', notes: '' },
-  { id: 'PED-003', clientId: 2, clientName: 'María García', items: [{productId: 7, name: 'Galletas Decoradas', qty: 6, price: 2.00}], total: 12.00, status: 'entregado', date: '2024-05-30', notes: '' },
-  { id: 'PED-004', clientId: 4, clientName: 'Ana Rodríguez', items: [{productId: 2, name: 'Trufas de Chocolate', qty: 3, price: 1.80},{productId: 8, name: 'Fudge de Caramelo', qty: 1, price: 5.00}], total: 10.40, status: 'rechazado', date: '2024-05-29', notes: 'Sin nueces' },
-  { id: 'PED-005', clientId: 3, clientName: 'Carlos López', items: [{productId: 6, name: 'Paletas de Chocolate', qty: 2, price: 4.00}], total: 8.00, status: 'en preparacion', date: '2024-06-02', notes: '' },
-  { id: 'PED-006', clientId: 2, clientName: 'María García', items: [{productId: 41, name: 'Suspiros Especiales', qty: 3, price: 0.45}], total: 1.35, status: 'pendiente', date: '2024-06-03', notes: 'Entrega urgente para evento pequeño' },
+  { id: 'PED-001', clientId: 2, clientName: 'María García', items: [{ productId: 1, name: 'Macarons de Rosas', qty: 4, price: 2.50 }, { productId: 5, name: 'Cupcake Red Velvet', qty: 2, price: 3.50 }], total: 17.00, status: 'pendiente', date: '2024-06-01', notes: 'Para cumpleaños' },
+  { id: 'PED-002', clientId: 3, clientName: 'Carlos López', items: [{ productId: 4, name: 'Bombones Surtidos', qty: 1, price: 12.00 }], total: 12.00, status: 'aceptado', date: '2024-06-01', notes: '' },
+  { id: 'PED-003', clientId: 2, clientName: 'María García', items: [{ productId: 7, name: 'Galletas Decoradas', qty: 6, price: 2.00 }], total: 12.00, status: 'entregado', date: '2024-05-30', notes: '' },
+  { id: 'PED-004', clientId: 4, clientName: 'Ana Rodríguez', items: [{ productId: 2, name: 'Trufas de Chocolate', qty: 3, price: 1.80 }, { productId: 8, name: 'Fudge de Caramelo', qty: 1, price: 5.00 }], total: 10.40, status: 'rechazado', date: '2024-05-29', notes: 'Sin nueces' },
+  { id: 'PED-005', clientId: 3, clientName: 'Carlos López', items: [{ productId: 6, name: 'Paletas de Chocolate', qty: 2, price: 4.00 }], total: 8.00, status: 'en preparacion', date: '2024-06-02', notes: '' },
+  { id: 'PED-006', clientId: 2, clientName: 'María García', items: [{ productId: 41, name: 'Suspiros Especiales', qty: 3, price: 0.45 }], total: 1.35, status: 'pendiente', date: '2024-06-03', notes: 'Entrega urgente para evento pequeño' },
 ];
 
 export const USERS_INITIAL = [

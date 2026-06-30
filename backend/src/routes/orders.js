@@ -565,6 +565,9 @@ router.put("/:id/status", async (req, res) => {
     return res.status(400).json({ ok: false, error: "status es requerido" });
   }
 
+  const STOCK_RESTORE_STATUSES = new Set(["rejected", "cancelled"]);
+  const STOCK_ALREADY_HANDLED = new Set(["rejected", "cancelled", "delivered"]);
+
   try {
     const result = await withTransaction(async (conn) => {
       const existingRows = await query(conn, "SELECT id, status FROM orders WHERE id = ?", [orderId]);
@@ -573,13 +576,54 @@ router.put("/:id/status", async (req, res) => {
         throw new Error("Pedido no encontrado");
       }
 
+      const previousStatus = normalizeStatus(
+        String(existingRows[0].STATUS || existingRows[0].status || ""),
+        "pending"
+      );
+
+      const shouldRestoreStock =
+        STOCK_RESTORE_STATUSES.has(nextStatus) &&
+        !STOCK_ALREADY_HANDLED.has(previousStatus);
+
+      if (shouldRestoreStock) {
+        const orderItems = await query(
+          conn,
+          `SELECT candy_id, quantity FROM ${schema}.order_items WHERE order_id = ?`,
+          [orderId]
+        );
+
+        for (const item of orderItems) {
+          const candyId = Number(item.CANDY_ID ?? item.candy_id);
+          const qty = Number(item.QUANTITY ?? item.quantity ?? 0);
+          if (!Number.isInteger(candyId) || candyId <= 0 || qty <= 0) continue;
+
+          const updated = await query(
+            conn,
+            `
+              UPDATE ${schema}.inventory
+              SET quantity = quantity + ?,
+                  available = (quantity + ?) > 0,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE candy_id = ?
+              RETURNING candy_id
+            `,
+            [qty, qty, candyId]
+          );
+
+          if (!updated.length) {
+            throw new Error(`No se pudo reponer stock para el dulce ${candyId}`);
+          }
+        }
+      }
+
       await query(conn, "UPDATE orders SET status = ? WHERE id = ?", [nextStatus, orderId]);
       await query(conn, "INSERT INTO order_status_history (order_id, status) VALUES (?, ?)", [orderId, nextStatus]);
 
       return {
         id: orderId,
-        previousStatus: String(existingRows[0].STATUS || existingRows[0].status || ""),
+        previousStatus,
         status: nextStatus,
+        stockRestored: shouldRestoreStock,
       };
     });
 

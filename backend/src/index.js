@@ -12,6 +12,8 @@ const ordersRouter = require("./routes/orders");
 const inventoryRouter = require("./routes/inventory");
 const customersRouter = require("./routes/customers");
 const authRouter = require("./routes/auth");
+const uploadRouter = require("./routes/upload");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -24,6 +26,9 @@ const corsOptions = corsOrigin
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Servir imagenes de forma publica
+app.use("/uploads", express.static(path.join(__dirname, "..", "public", "uploads")));
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "dulceria-backend" });
 });
@@ -32,6 +37,7 @@ app.use("/api/orders", ordersRouter);
 app.use("/api/inventory", inventoryRouter);
 app.use("/api/customers", customersRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/upload", uploadRouter);
 
 app.use((err, _req, res, _next) => {
   console.error("Unhandled error:", err);

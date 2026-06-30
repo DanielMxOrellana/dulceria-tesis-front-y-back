@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { ArrowLeft, CheckCircle, ShoppingCart } from 'lucide-react';
-import { ALL_PACKAGING_OPTIONS, ORDER_STEPS, getBestPackageForCount } from '../utils/orderFlow';
+import { ORDER_STEPS, getRecommendedPackaging, resolveSelectedPackaging } from '../utils/orderFlow';
 
 export default function NewOrderCustomerPage() {
   const { cart, cartTotal, createOrder, currentUser, orderDraft, updateOrderDraft } = useApp();
@@ -19,9 +19,19 @@ export default function NewOrderCustomerPage() {
 
   const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
   const [loading, setLoading] = useState(false);
-  const selectedPackaging = ALL_PACKAGING_OPTIONS.find(option => option.id === orderDraft.packagingId) || getBestPackageForCount(totalItems);
+  const selectedPackaging = resolveSelectedPackaging(orderDraft, totalItems);
   const packagingTotal = selectedPackaging?.precio || 0;
   const grandTotal = cartTotal + packagingTotal;
+
+  useEffect(() => {
+    const recommended = getRecommendedPackaging(orderDraft, totalItems);
+    if (!recommended) return;
+
+    const currentType = orderDraft.packagingType || 'fundas';
+    if (recommended.id !== orderDraft.packagingId || recommended.tipo !== currentType) {
+      updateOrderDraft({ packagingId: recommended.id, packagingType: recommended.tipo });
+    }
+  }, [orderDraft, totalItems, updateOrderDraft]);
 
   const confirm = async () => {
     const customer = orderDraft.customer || {};
@@ -182,7 +192,7 @@ export default function NewOrderCustomerPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
             <span>Empaque</span>
-            <span>{selectedPackaging ? `${selectedPackaging.emoji} ${selectedPackaging.nombre}` : 'Sin empaque'}</span>
+            <span>{selectedPackaging ? `${selectedPackaging.emoji} ${selectedPackaging.nombre} · $${selectedPackaging.precio.toFixed(2)} · hasta ${selectedPackaging.capacidadMax} uds` : 'Sin empaque'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
             <span>Total estimado</span>
