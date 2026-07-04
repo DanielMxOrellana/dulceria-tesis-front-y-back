@@ -98,6 +98,22 @@ export const getRecommendedPackaging = (orderDraft, count) => {
 export const resolveSelectedPackaging = (orderDraft, count) =>
   getRecommendedPackaging(orderDraft, count);
 
+/** Busca un empaque por su id, sin importar el tipo. */
+export const getPackagingById = (id) =>
+  ALL_PACKAGING_OPTIONS.find(option => option.id === id) || null;
+
+/**
+ * Empaque elegido manualmente por el cliente (paso 1). A diferencia de
+ * getRecommendedPackaging, esta funcion NO cambia de empaque segun lo que
+ * se agregue al carrito: el limite de valor en dulces lo define unicamente
+ * el empaque que el cliente selecciono.
+ */
+export const getSelectedPackaging = (orderDraft) =>
+  getPackagingById(orderDraft?.packagingId);
+
+/** El precio del empaque es, a la vez, el limite maximo en dulces permitido. */
+export const getPackagingLimit = (packaging) => Number(packaging?.precio ?? 0);
+
 export const getOrderPackagingTotal = (order) =>
   Number(order?.packaging?.precio ?? order?.packagingTotal ?? 0);
 

@@ -57,8 +57,8 @@ export default function VendorDashboard({ section = 'dashboard' }) {
   const [rejectConfirmOrder, setRejectConfirmOrder] = useState(null);
 
   const vendorProducts = useMemo(
-    () => products.filter((product) => product.vendorId === currentUser?.id),
-    [products, currentUser?.id]
+    () => products,
+    [products]
   );
 
   const vendorProductIds = useMemo(

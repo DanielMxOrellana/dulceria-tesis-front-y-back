@@ -138,7 +138,7 @@ export default function OrdersPage() {
               <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18 }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginBottom: 2 }}>Empaque</p>
                 <p style={{ fontWeight: 600 }}>{selectedOrder.packaging.emoji} {selectedOrder.packaging.nombre}</p>
-                <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>Capacidad: hasta {selectedOrder.packaging.capacidadMax} dulces · ${selectedOrder.packaging.precio.toFixed(2)}</p>
+                <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>Incluye hasta ${selectedOrder.packaging.precio.toFixed(2)} en dulces</p>
               </div>
             )}
 

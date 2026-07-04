@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Plus, Pencil, Trash2, X, Package } from 'lucide-react';
 import { CATEGORIES } from '../data/mockData';
+import { api } from '../services/api';
 
 const EMPTY_FORM = { name: '', category: '', price: '', stock: '', minStock: '', description: '', image: '' };
 
@@ -12,6 +13,8 @@ export default function ProductsAdmin() {
   const [editId, setEditId] = useState(null);
   const [search, setSearch] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -20,10 +23,30 @@ export default function ProductsAdmin() {
 
   const handle = e => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const openAdd = () => { setForm(EMPTY_FORM); setEditId(null); setModal('form'); };
+  const openAdd = () => { setForm(EMPTY_FORM); setEditId(null); setUploadError(''); setModal('form'); };
   const openEdit = (p) => {
     setForm({ name: p.name, category: p.category, price: p.price, stock: p.stock, minStock: p.minStock, description: p.description, image: p.image });
-    setEditId(p.id); setModal('form');
+    setEditId(p.id); setUploadError(''); setModal('form');
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      const response = await api.uploadImage(file);
+      if (response && response.ok) {
+        setForm(prev => ({ ...prev, image: response.imageUrl }));
+      } else {
+        setUploadError(response?.error || 'Falló la subida de la imagen.');
+      }
+    } catch (err) {
+      setUploadError('Error al subir la imagen.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const save = (e) => {
@@ -134,6 +157,15 @@ export default function ProductsAdmin() {
                 <div className="form-group" style={{ gridColumn: '1/-1' }}>
                   <label>Descripción</label>
                   <textarea name="description" value={form.description} onChange={handle} rows={2} placeholder="Descripción del producto..." style={{ resize: 'vertical' }} />
+                </div>
+                <div className="form-group" style={{ gridColumn: '1/-1' }}>
+                  <label>Imagen</label>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} />
+                  {isUploading && <span style={{ color: 'var(--pink-500)', fontSize: '0.85rem' }}>Subiendo imagen...</span>}
+                  {uploadError && <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{uploadError}</span>}
+                  {form.image && !isUploading && (
+                    <img src={form.image} alt="Vista previa" style={{ maxWidth: '100px', marginTop: 8, borderRadius: 8 }} />
+                  )}
                 </div>
               </div>
               <div className="modal-footer">

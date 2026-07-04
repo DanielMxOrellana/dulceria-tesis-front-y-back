@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Search, ArrowLeft, ArrowRight, Minus, Plus, ShoppingCart, X } from 'lucide-react';
 import { CATEGORIES } from '../data/mockData';
-import { ORDER_STEPS, getRecommendedPackaging, getImageSrc, resolveSelectedPackaging } from '../utils/orderFlow';
+import { ORDER_STEPS, getImageSrc, getSelectedPackaging } from '../utils/orderFlow';
 
 export default function NewOrderProductsPage() {
-  const { products, cart, addToCart, removeFromCart, cartTotal, orderDraft, updateOrderDraft } = useApp();
+  const { products, cart, addToCart, removeFromCart, cartTotal, orderDraft } = useApp();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
+  const [limitError, setLimitError] = useState('');
   const navigate = useNavigate();
 
   const categories = ['Todos', ...CATEGORIES.filter(c => products.some(p => p.category === c))];
@@ -18,20 +19,10 @@ export default function NewOrderProductsPage() {
     return matchSearch && matchCat;
   });
 
-  const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
-  const selectedPackaging = resolveSelectedPackaging(orderDraft, totalItems);
-  const packagingTotal = selectedPackaging?.precio || 0;
-  const grandTotal = cartTotal + packagingTotal;
-
-  useEffect(() => {
-    const recommended = getRecommendedPackaging(orderDraft, totalItems);
-    if (!recommended) return;
-
-    const currentType = orderDraft.packagingType || 'fundas';
-    if (recommended.id !== orderDraft.packagingId || recommended.tipo !== currentType) {
-      updateOrderDraft({ packagingId: recommended.id, packagingType: recommended.tipo });
-    }
-  }, [orderDraft, totalItems, updateOrderDraft]);
+  const selectedPackaging = getSelectedPackaging(orderDraft);
+  const limit = selectedPackaging?.precio || 0;
+  const remaining = Math.max(0, limit - cartTotal);
+  const grandTotal = limit;
 
   const inCart = (id) => cart.find(i => i.productId === id);
 
@@ -46,10 +37,19 @@ export default function NewOrderProductsPage() {
     return currentQty < getProductStock(productId);
   };
 
+  const fitsInBudget = (price) => cartTotal + Number(price || 0) <= limit + 0.001;
+
   const updateQty = (item, delta) => {
     if (item.qty + delta <= 0) return removeFromCart(item.productId);
     if (delta > 0 && !canAddMore(item.productId, item.qty)) return;
-    addToCart({ id: item.productId, name: item.name, price: item.price, image: item.image }, delta);
+    const result = addToCart({ id: item.productId, name: item.name, price: item.price, image: item.image }, delta);
+    setLimitError(result?.error && delta > 0 ? result.error : '');
+  };
+
+  const handleSelect = (product) => {
+    if (!canAddMore(product.id)) return;
+    const result = addToCart(product);
+    setLimitError(result?.error || '');
   };
 
   return (
@@ -66,12 +66,36 @@ export default function NewOrderProductsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>Empaque actual: {selectedPackaging ? `${selectedPackaging.emoji} ${selectedPackaging.nombre}` : 'Sin empaque'}</p>
-            <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>El empaque se ajusta solo al agregar o quitar dulces: sube o baja de tamaño, y cambia de tipo si hace falta.</p>
-          </div>
-          <div style={{ padding: '10px 14px', borderRadius: 14, background: 'var(--gray-50)', color: 'var(--gray-500)', fontSize: '0.86rem' }}>
-            {totalItems} dulces seleccionados
+            <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>El precio del empaque ya incluye el valor de los dulces: si necesitas más, vuelve al paso 1 y elige un empaque de mayor valor.</p>
           </div>
         </div>
+
+        {selectedPackaging && (
+          <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Empaque seleccionado</p>
+              <p style={{ fontWeight: 700 }}>{selectedPackaging.emoji} {selectedPackaging.nombre}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Límite disponible</p>
+              <p style={{ fontWeight: 700 }}>${limit.toFixed(2)}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Valor acumulado</p>
+              <p style={{ fontWeight: 700 }}>${cartTotal.toFixed(2)}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saldo restante</p>
+              <p style={{ fontWeight: 700 }}>${remaining.toFixed(2)}</p>
+            </div>
+          </div>
+        )}
+
+        {limitError && (
+          <div style={{ background: '#fdecea', color: 'var(--danger)', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginBottom: 16, fontSize: '0.88rem' }}>
+            {limitError}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
@@ -91,6 +115,7 @@ export default function NewOrderProductsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 16 }}>
             {filtered.map(p => {
               const item = inCart(p.id);
+              const canAddByBudget = fitsInBudget(p.price);
               return (
                 <div key={p.id} className="card catalog-product-card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div className="catalog-product-card__image" style={{ background: 'linear-gradient(135deg, var(--pink-100), var(--brown-100))', padding: '18px', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -115,9 +140,9 @@ export default function NewOrderProductsPage() {
                         <button
                           onClick={() => updateQty(item, 1)}
                           className="btn btn-secondary btn-sm"
-                          style={{ width: 30, height: 30, padding: 0, justifyContent: 'center', opacity: canAddMore(p.id, item.qty) ? 1 : 0.4, cursor: canAddMore(p.id, item.qty) ? 'pointer' : 'not-allowed' }}
-                          disabled={!canAddMore(p.id, item.qty)}
-                          title={canAddMore(p.id, item.qty) ? 'Agregar uno' : `Stock máximo (${p.stock})`}
+                          style={{ width: 30, height: 30, padding: 0, justifyContent: 'center', opacity: (canAddMore(p.id, item.qty) && canAddByBudget) ? 1 : 0.4, cursor: (canAddMore(p.id, item.qty) && canAddByBudget) ? 'pointer' : 'not-allowed' }}
+                          disabled={!canAddMore(p.id, item.qty) || !canAddByBudget}
+                          title={!canAddMore(p.id, item.qty) ? `Stock máximo (${p.stock})` : !canAddByBudget ? 'Excede el límite del empaque' : 'Agregar uno'}
                         >
                           <Plus size={13} />
                         </button>
@@ -125,9 +150,10 @@ export default function NewOrderProductsPage() {
                     ) : (
                       <button
                         className="btn btn-primary btn-sm"
-                        style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', opacity: canAddMore(p.id) ? 1 : 0.5, cursor: canAddMore(p.id) ? 'pointer' : 'not-allowed' }}
-                        onClick={() => canAddMore(p.id) && addToCart(p)}
-                        disabled={!canAddMore(p.id)}
+                        style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', opacity: (canAddMore(p.id) && canAddByBudget) ? 1 : 0.5, cursor: (canAddMore(p.id) && canAddByBudget) ? 'pointer' : 'not-allowed' }}
+                        onClick={() => handleSelect(p)}
+                        disabled={!canAddMore(p.id) || !canAddByBudget}
+                        title={!canAddByBudget ? 'Excede el límite del empaque' : undefined}
                       >
                         <Plus size={13} /> Seleccionar
                       </button>
@@ -149,6 +175,7 @@ export default function NewOrderProductsPage() {
             ) : (
               cart.map(item => {
                 const atStockLimit = !canAddMore(item.productId, item.qty);
+                const atBudgetLimit = !fitsInBudget(item.price);
                 return (
                 <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
                   <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
@@ -158,9 +185,9 @@ export default function NewOrderProductsPage() {
                     <button
                       onClick={() => updateQty(item, 1)}
                       className="btn btn-secondary btn-sm"
-                      style={{ width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: atStockLimit ? 0.4 : 1, cursor: atStockLimit ? 'not-allowed' : 'pointer' }}
-                      disabled={atStockLimit}
-                      title={atStockLimit ? `Stock máximo (${getProductStock(item.productId)})` : 'Agregar uno'}
+                      style={{ width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (atStockLimit || atBudgetLimit) ? 0.4 : 1, cursor: (atStockLimit || atBudgetLimit) ? 'not-allowed' : 'pointer' }}
+                      disabled={atStockLimit || atBudgetLimit}
+                      title={atStockLimit ? `Stock máximo (${getProductStock(item.productId)})` : atBudgetLimit ? 'Excede el límite del empaque' : 'Agregar uno'}
                     >
                       <Plus size={12} />
                     </button>
@@ -174,15 +201,15 @@ export default function NewOrderProductsPage() {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
-              <span>Subtotal</span>
+              <span>Valor de dulces</span>
               <span>${cartTotal.toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
               <span>Empaque</span>
-              <span>{selectedPackaging ? `${selectedPackaging.nombre} · $${selectedPackaging.precio.toFixed(2)} · hasta ${selectedPackaging.capacidadMax} uds` : 'Sin empaque'}</span>
+              <span>{selectedPackaging ? `${selectedPackaging.nombre} · $${selectedPackaging.precio.toFixed(2)}` : 'Sin empaque'}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
-              <span>Total estimado</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.95rem', fontWeight: 700 }}>
+              <span>Total a cobrar</span>
               <span>${grandTotal.toFixed(2)}</span>
             </div>
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { ArrowLeft, CheckCircle, ShoppingCart } from 'lucide-react';
-import { ORDER_STEPS, getRecommendedPackaging, resolveSelectedPackaging } from '../utils/orderFlow';
+import { ORDER_STEPS, getSelectedPackaging } from '../utils/orderFlow';
 
 export default function NewOrderCustomerPage() {
   const { cart, cartTotal, createOrder, currentUser, orderDraft, updateOrderDraft } = useApp();
@@ -17,21 +17,11 @@ export default function NewOrderCustomerPage() {
     }
   }, [currentUser, orderDraft.customer.name, updateOrderDraft]);
 
-  const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
   const [loading, setLoading] = useState(false);
-  const selectedPackaging = resolveSelectedPackaging(orderDraft, totalItems);
+  const selectedPackaging = getSelectedPackaging(orderDraft);
   const packagingTotal = selectedPackaging?.precio || 0;
-  const grandTotal = cartTotal + packagingTotal;
-
-  useEffect(() => {
-    const recommended = getRecommendedPackaging(orderDraft, totalItems);
-    if (!recommended) return;
-
-    const currentType = orderDraft.packagingType || 'fundas';
-    if (recommended.id !== orderDraft.packagingId || recommended.tipo !== currentType) {
-      updateOrderDraft({ packagingId: recommended.id, packagingType: recommended.tipo });
-    }
-  }, [orderDraft, totalItems, updateOrderDraft]);
+  const remaining = Math.max(0, packagingTotal - cartTotal);
+  const grandTotal = packagingTotal;
 
   const confirm = async () => {
     const customer = orderDraft.customer || {};
@@ -187,15 +177,19 @@ export default function NewOrderCustomerPage() {
           ))}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
-            <span>Subtotal</span>
+            <span>Valor de dulces (acumulado)</span>
             <span>${cartTotal.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
-            <span>Empaque</span>
-            <span>{selectedPackaging ? `${selectedPackaging.emoji} ${selectedPackaging.nombre} · $${selectedPackaging.precio.toFixed(2)} · hasta ${selectedPackaging.capacidadMax} uds` : 'Sin empaque'}</span>
+            <span>Empaque · límite disponible</span>
+            <span>{selectedPackaging ? `${selectedPackaging.emoji} ${selectedPackaging.nombre} · $${selectedPackaging.precio.toFixed(2)}` : 'Sin empaque'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
-            <span>Total estimado</span>
+            <span>Saldo restante</span>
+            <span>${remaining.toFixed(2)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.95rem', fontWeight: 700 }}>
+            <span>Total a cobrar</span>
             <span>${grandTotal.toFixed(2)}</span>
           </div>
 

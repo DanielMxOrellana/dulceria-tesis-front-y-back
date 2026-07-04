@@ -1,36 +1,43 @@
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { ORDER_STEPS, PACKAGING_TYPES, getBestPackageForType, getPackagingsForType, resolveSelectedPackaging } from '../utils/orderFlow';
+import { ORDER_STEPS, PACKAGING_TYPES, getPackagingsForType, getSelectedPackaging } from '../utils/orderFlow';
 
 export default function NewOrderPackagingPage() {
-  const { cartCount, orderDraft, updateOrderDraft } = useApp();
+  const { cartTotal, orderDraft, updateOrderDraft } = useApp();
   const navigate = useNavigate();
+  const [downgradeError, setDowngradeError] = useState('');
 
   const selectedType = orderDraft.packagingType || 'fundas';
-  const selectedPackaging = resolveSelectedPackaging(orderDraft, cartCount);
+  const selectedPackaging = getSelectedPackaging(orderDraft);
   const packagingOptions = getPackagingsForType(selectedType);
 
-  useEffect(() => {
-    const recommended = getBestPackageForType(selectedType, cartCount);
-    // Solo aplicar la recomendación si aún no se ha seleccionado manualmente un empaque
-    if (recommended && !orderDraft.packagingId) {
-      updateOrderDraft({
-        packagingId: recommended.id,
-        preferredPackagingType: selectedType,
-      });
-    }
-  }, [cartCount, selectedType, updateOrderDraft, orderDraft.packagingId]);
-
   const selectType = (typeKey) => {
-    const recommended = getBestPackageForType(typeKey, cartCount);
+    const options = getPackagingsForType(typeKey);
+    const firstThatFits = options.find(option => option.precio + 0.001 >= cartTotal) || options[0];
     updateOrderDraft({
       packagingType: typeKey,
       preferredPackagingType: typeKey,
-      packagingId: recommended?.id || '',
+      packagingId: firstThatFits?.id || '',
+    });
+    setDowngradeError('');
+  };
+
+  const selectPackaging = (option) => {
+    if (option.precio + 0.001 < cartTotal) {
+      setDowngradeError(`Ya agregaste $${cartTotal.toFixed(2)} en dulces. Este empaque solo permite hasta $${option.precio.toFixed(2)}.`);
+      return;
+    }
+    setDowngradeError('');
+    updateOrderDraft({
+      packagingId: option.id,
+      preferredPackagingType: selectedType,
     });
   };
+
+  const limit = selectedPackaging?.precio || 0;
+  const remaining = Math.max(0, limit - cartTotal);
 
   return (
     <div>
@@ -52,8 +59,13 @@ export default function NewOrderPackagingPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 18 }}>
+          <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
+            <p style={{ color: 'var(--gray-500)', fontSize: '0.88rem' }}>
+              Cada empaque incluye un valor máximo en dulces: el precio del empaque ya cubre esos dulces, así que solo se cobra el valor del empaque.
+            </p>
+          </div>
+
           <div>
-            <p style={{ color: 'var(--gray-400)', marginBottom: 12 }}>Cantidad actual de dulces: {cartCount}</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 18 }}>
               {PACKAGING_TYPES.map(type => {
                 const isActive = selectedType === type.key;
@@ -88,6 +100,12 @@ export default function NewOrderPackagingPage() {
             </div>
           </div>
 
+          {downgradeError && (
+            <div style={{ background: '#fdecea', color: 'var(--danger)', borderRadius: 'var(--radius-md)', padding: '12px 14px', fontSize: '0.88rem' }}>
+              {downgradeError}
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
             {packagingOptions.map(option => {
               const isActive = orderDraft.packagingId === option.id;
@@ -95,10 +113,7 @@ export default function NewOrderPackagingPage() {
                 <button
                   key={option.id}
                   type="button"
-                  onClick={() => updateOrderDraft({
-                    packagingId: option.id,
-                    preferredPackagingType: selectedType,
-                  })}
+                  onClick={() => selectPackaging(option)}
                   aria-pressed={isActive}
                   style={{
                     textAlign: 'left',
@@ -125,7 +140,7 @@ export default function NewOrderPackagingPage() {
                     </div>
                     <span style={{ fontWeight: 700, color: 'var(--pink-500)', whiteSpace: 'nowrap' }}>${option.precio.toFixed(2)}</span>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>Capacidad: hasta {option.capacidadMax} dulces</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>Incluye hasta ${option.precio.toFixed(2)} en dulces</div>
                 </button>
               );
             })}
@@ -139,8 +154,23 @@ export default function NewOrderPackagingPage() {
           </div>
 
           {selectedPackaging && (
-            <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 16px', color: 'var(--gray-500)' }}>
-              Empaque seleccionado: <strong>{selectedPackaging.emoji} {selectedPackaging.nombre}</strong> · capacidad hasta {selectedPackaging.capacidadMax} dulces
+            <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '14px 16px', color: 'var(--gray-500)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+              <div>
+                <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Empaque seleccionado</p>
+                <p style={{ fontWeight: 700, color: 'var(--gray-700)' }}>{selectedPackaging.emoji} {selectedPackaging.nombre}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Límite disponible</p>
+                <p style={{ fontWeight: 700, color: 'var(--gray-700)' }}>${limit.toFixed(2)}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Valor acumulado</p>
+                <p style={{ fontWeight: 700, color: 'var(--gray-700)' }}>${cartTotal.toFixed(2)}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saldo restante</p>
+                <p style={{ fontWeight: 700, color: 'var(--gray-700)' }}>${remaining.toFixed(2)}</p>
+              </div>
             </div>
           )}
         </div>

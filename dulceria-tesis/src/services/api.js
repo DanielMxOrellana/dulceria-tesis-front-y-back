@@ -38,7 +38,7 @@ export const api = {
         name: p.candy_name || p.CANDY_NAME,
         description: p.description || p.DESCRIPTION,
         category: p.category || p.CATEGORY || 'General',
-        image: p.image_url || p.IMAGE_URL || '/img/dulces/logo.jpg',
+        image: p.image_url || p.IMAGE_URL || '',
         stock: Number(p.quantity ?? p.QUANTITY ?? 0),
         price: Number(p.price || p.PRICE || 0),
         available: Boolean(p.available || p.AVAILABLE),

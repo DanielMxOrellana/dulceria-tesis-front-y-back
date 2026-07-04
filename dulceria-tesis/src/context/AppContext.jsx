@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { PRODUCTS_INITIAL, ORDERS_INITIAL, USERS_INITIAL } from '../data/mockData';
 import { api, hasApi } from '../services/api';
+import { getSelectedPackaging, getPackagingLimit } from '../utils/orderFlow';
+
+export const PACKAGING_LIMIT_EXCEEDED_MESSAGE =
+  'No es posible agregar este producto porque excede la capacidad del empaque seleccionado. Seleccione un empaque de mayor valor para continuar.';
 
 const AppContext = createContext();
 
@@ -29,7 +33,7 @@ export function AppProvider({ children }) {
   const [orderDraft, setOrderDraft] = useState({
     packagingType: 'fundas',
     preferredPackagingType: 'fundas',
-    packagingId: '',
+    packagingId: 'funda_s',
     customer: {
       name: '',
       phone: '',
@@ -63,6 +67,14 @@ export function AppProvider({ children }) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => {
+      fetchData();
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
 
   useEffect(() => {
     setCart(prev => {
@@ -212,6 +224,7 @@ export function AppProvider({ children }) {
     // Map stock to quantity for backend
     const apiUpdates = { ...updates };
     if (updates.stock !== undefined) apiUpdates.quantity = updates.stock;
+    if (updates.image !== undefined) apiUpdates.image_url = updates.image;
 
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates, available: (updates.stock ?? p.stock) > 0 } : p));
     syncApi(() => api.updateProduct(id, apiUpdates));
@@ -233,7 +246,19 @@ export function AppProvider({ children }) {
     const catalogProduct = products.find(p => p.id === productId);
     const stock = Math.max(0, catalogProduct?.stock ?? 0);
 
-    if (qty > 0 && (!catalogProduct?.available || stock === 0)) return;
+    if (qty > 0 && (!catalogProduct?.available || stock === 0)) {
+      return { error: 'Producto no disponible.' };
+    }
+
+    if (qty > 0) {
+      const selectedPackaging = getSelectedPackaging(orderDraft);
+      const limit = getPackagingLimit(selectedPackaging);
+      const addedValue = Number(product.price || 0) * qty;
+
+      if (selectedPackaging && cartTotal + addedValue > limit + 0.001) {
+        return { error: PACKAGING_LIMIT_EXCEEDED_MESSAGE };
+      }
+    }
 
     setCart(prev => {
       const existing = prev.find(i => i.productId === productId);
@@ -259,6 +284,8 @@ export function AppProvider({ children }) {
         image: product.image,
       }];
     });
+
+    return { success: true };
   };
 
   const removeFromCart = (productId) => setCart(prev => prev.filter(i => i.productId !== productId));
@@ -278,7 +305,7 @@ export function AppProvider({ children }) {
   const resetOrderDraft = () => setOrderDraft({
     packagingType: 'fundas',
     preferredPackagingType: 'fundas',
-    packagingId: '',
+    packagingId: 'funda_s',
     customer: { name: '', phone: '', address: '', reference: '', cedula: '', city: 'Quito' },
     notes: '',
   });
@@ -349,7 +376,14 @@ export function AppProvider({ children }) {
       }
     }
 
+    if (!packaging) return { error: 'Selecciona un empaque antes de confirmar.' };
+
     const packagingTotal = packaging?.precio ?? 0;
+
+    if (cartTotal > packagingTotal + 0.001) {
+      return { error: PACKAGING_LIMIT_EXCEEDED_MESSAGE };
+    }
+
     const clientName = customer.name?.trim() || currentUser.name;
     const clientPhone = customer.phone?.trim() || '';
     const clientAddress = customer.address?.trim() || '';
@@ -376,7 +410,7 @@ export function AppProvider({ children }) {
         quantity: parseInt(i.qty, 10),
         subtotal: Number(i.price * i.qty)
       })),
-      total: cartTotal + packagingTotal,
+      total: packagingTotal,
       userId: currentUser?.id
     };
 
@@ -400,7 +434,7 @@ export function AppProvider({ children }) {
           })),
           productTotal: cartTotal,
           packagingTotal,
-          total: cartTotal + packagingTotal,
+          total: packagingTotal,
           status: 'pendiente',
           date: new Date().toISOString().split('T')[0],
           notes,
