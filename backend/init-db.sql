@@ -183,6 +183,30 @@ CREATE INDEX IF NOT EXISTS idx_customers_cedula ON customers(cedula);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_extras_order_id ON order_extras(order_id);
 
+CREATE TABLE IF NOT EXISTS inventory_movements (
+  id SERIAL PRIMARY KEY,
+  candy_id INTEGER NOT NULL,
+  candy_name VARCHAR(255) NOT NULL,
+  actor_id TEXT,
+  actor_name VARCHAR(120),
+  actor_role VARCHAR(20) NOT NULL DEFAULT 'admin',
+  movement_type VARCHAR(20) NOT NULL,
+  quantity_before INTEGER NOT NULL,
+  quantity_after INTEGER NOT NULL,
+  delta INTEGER NOT NULL,
+  note TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'approved',
+  requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  approved_at TIMESTAMP,
+  approved_by_id TEXT,
+  approved_by_name VARCHAR(120),
+  rejection_note TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_candy_id ON inventory_movements(candy_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_status ON inventory_movements(status);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_requested_at ON inventory_movements(requested_at);
+
 DROP VIEW IF EXISTS vw_admin_orders_full;
 DROP VIEW IF EXISTS vw_admin_orders_summary;
 DROP VIEW IF EXISTS vw_admin_orders_json;

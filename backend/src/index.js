@@ -249,6 +249,38 @@ async function runMigrations() {
     await query(conn, `ALTER TABLE ${schema}.inventory ADD COLUMN IF NOT EXISTS image_url TEXT`);
     await query(conn, `ALTER TABLE ${schema}.inventory ADD COLUMN IF NOT EXISTS vendor_id UUID`);
     await query(conn, `ALTER TABLE ${schema}.inventory ADD COLUMN IF NOT EXISTS min_stock INTEGER DEFAULT 0`);
+    await query(conn, `ALTER TABLE ${schema}.inventory ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`);
+
+    await query(
+      conn,
+      `
+        CREATE TABLE IF NOT EXISTS ${schema}.inventory_movements (
+          id SERIAL PRIMARY KEY,
+          candy_id INTEGER NOT NULL,
+          candy_name VARCHAR(255) NOT NULL,
+          actor_id TEXT,
+          actor_name VARCHAR(120),
+          actor_role VARCHAR(20) NOT NULL DEFAULT 'admin',
+          movement_type VARCHAR(20) NOT NULL,
+          quantity_before INTEGER NOT NULL,
+          quantity_after INTEGER NOT NULL,
+          delta INTEGER NOT NULL,
+          note TEXT NOT NULL,
+          status VARCHAR(20) NOT NULL DEFAULT 'approved',
+          requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          approved_at TIMESTAMP,
+          approved_by_id TEXT,
+          approved_by_name VARCHAR(120),
+          rejection_note TEXT
+        )
+      `
+    );
+
+    await query(conn, `ALTER TABLE ${schema}.inventory_movements ALTER COLUMN actor_id TYPE TEXT USING actor_id::TEXT`);
+    await query(conn, `ALTER TABLE ${schema}.inventory_movements ALTER COLUMN approved_by_id TYPE TEXT USING approved_by_id::TEXT`);
+    await query(conn, `CREATE INDEX IF NOT EXISTS idx_inventory_movements_candy_id ON ${schema}.inventory_movements(candy_id)`);
+    await query(conn, `CREATE INDEX IF NOT EXISTS idx_inventory_movements_status ON ${schema}.inventory_movements(status)`);
+    await query(conn, `CREATE INDEX IF NOT EXISTS idx_inventory_movements_requested_at ON ${schema}.inventory_movements(requested_at)`);
 
     // User Profiles migrations
     await query(conn, `ALTER TABLE ${schema}.user_profiles ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'client'`);
@@ -261,11 +293,10 @@ async function startServer() {
     await checkDbAndSchema();
     await ensureOrdersColumns();
     await ensureUserProfilesTable();
-    await runMigrations(); // <-- Ejecutar migraciones
-    console.log("Conexion PostgreSQL y esquema de pedidos listos.");
-
     // Crear tabla de inventario si no existe
     await createInventoryTableIfNotExists();
+    await runMigrations(); // <-- Ejecutar migraciones
+    console.log("Conexion PostgreSQL y esquema de pedidos listos.");
   } catch (error) {
     console.warn(`Aviso PostgreSQL: ${error.message}`);
   }

@@ -1,14 +1,25 @@
 const API_URL = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
+const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admin20003';
 
 export const hasApi = Boolean(API_URL);
 
 async function request(path, options = {}) {
   if (!hasApi) return null;
 
+  let sessionUser = null;
+  try {
+    sessionUser = JSON.parse(localStorage.getItem('dulceria_session') || 'null');
+  } catch (e) {
+    sessionUser = null;
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(sessionUser?.id ? { 'x-user-id': String(sessionUser.id) } : {}),
+      ...(sessionUser?.role ? { 'x-user-role': String(sessionUser.role) } : {}),
+      ...(sessionUser?.name ? { 'x-user-name': String(sessionUser.name) } : {}),
       ...(options.headers || {}),
     },
   });
@@ -96,12 +107,25 @@ export const api = {
   getUsers: () => request('/api/auth/users'),
   createProduct: (product) => request('/api/inventory', {
     method: 'POST',
-    headers: { 'x-admin-password': 'admin123' }, // Mocking admin password for now
+    headers: { 'x-admin-password': ADMIN_PASSWORD },
     body: JSON.stringify(product),
   }),
   updateProduct: (id, updates) => request(`/api/inventory/${id}`, {
     method: 'PUT',
     body: JSON.stringify(updates),
+  }),
+  getInventoryMovements: (status = '') => request(`/api/inventory/movements${status ? `?status=${encodeURIComponent(status)}` : ''}`, {
+    headers: { 'x-admin-password': ADMIN_PASSWORD },
+  }),
+  approveInventoryMovement: (id, payload = {}) => request(`/api/inventory/movements/${id}/approve`, {
+    method: 'PUT',
+    headers: { 'x-admin-password': ADMIN_PASSWORD },
+    body: JSON.stringify(payload),
+  }),
+  rejectInventoryMovement: (id, payload = {}) => request(`/api/inventory/movements/${id}/reject`, {
+    method: 'PUT',
+    headers: { 'x-admin-password': ADMIN_PASSWORD },
+    body: JSON.stringify(payload),
   }),
   deleteProduct: (id) => request(`/api/inventory/${id}`, {
     method: 'DELETE',

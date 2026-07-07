@@ -8,6 +8,8 @@ export const PACKAGING_LIMIT_EXCEEDED_MESSAGE =
 
 const AppContext = createContext();
 
+const isVendorRole = (role) => ['vendor', 'vendedor', 'seller'].includes(String(role || '').trim().toLowerCase());
+
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -28,6 +30,7 @@ export function AppProvider({ children }) {
   const [products, setProducts] = useState(PRODUCTS_INITIAL);
   const [orders, setOrders] = useState(ORDERS_INITIAL);
   const [users, setUsers] = useState([]);
+  const [inventoryMovements, setInventoryMovements] = useState([]);
   const [cart, setCart] = useState([]);
   const [apiError, setApiError] = useState('');
   const [orderDraft, setOrderDraft] = useState({
@@ -48,15 +51,17 @@ export function AppProvider({ children }) {
   const fetchData = async () => {
     if (!hasApi) return;
     try {
-      const [apiProducts, apiOrders, apiUsers] = await Promise.all([
+      const [apiProducts, apiOrders, apiUsers, apiMovements] = await Promise.all([
         api.getProducts().catch(() => null),
         api.getOrders().catch(() => null),
         api.getUsers().catch(() => null),
+        currentUser?.role === 'admin' ? api.getInventoryMovements().catch(() => null) : Promise.resolve(null),
       ]);
 
       if (Array.isArray(apiProducts)) setProducts(apiProducts);
       if (Array.isArray(apiOrders)) setOrders(apiOrders);
       if (Array.isArray(apiUsers)) setUsers(apiUsers);
+      if (apiMovements?.ok && Array.isArray(apiMovements.movements)) setInventoryMovements(apiMovements.movements);
       setApiError('');
     } catch (error) {
       console.error("fetchData error:", error);
@@ -220,14 +225,43 @@ export function AppProvider({ children }) {
     syncApi(() => api.createProduct(newP));
   };
 
-  const updateProduct = (id, updates) => {
+  const updateProduct = async (id, updates) => {
     // Map stock to quantity for backend
     const apiUpdates = { ...updates };
     if (updates.stock !== undefined) apiUpdates.quantity = updates.stock;
     if (updates.image !== undefined) apiUpdates.image_url = updates.image;
+    apiUpdates.actorId = currentUser?.id;
+    apiUpdates.actorName = currentUser?.name;
+    apiUpdates.actorRole = currentUser?.role;
 
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates, available: (updates.stock ?? p.stock) > 0 } : p));
-    syncApi(() => api.updateProduct(id, apiUpdates));
+    const stockChanged = updates.stock !== undefined;
+    const requiresApproval = isVendorRole(currentUser?.role) && stockChanged;
+
+    if (!requiresApproval) {
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates, available: (updates.stock ?? p.stock) > 0 } : p));
+    } else {
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates, stock: p.stock, available: p.available } : p));
+    }
+
+    if (!hasApi) {
+      return { success: true };
+    }
+
+    try {
+      const response = await api.updateProduct(id, apiUpdates);
+      if (response?.pendingApproval) {
+        await refreshProductsFromApi();
+        await fetchInventoryMovements();
+        return { success: true, pendingApproval: true };
+      }
+      if (stockChanged) {
+        await refreshProductsFromApi();
+      }
+      return response?.ok ? { success: true } : { error: response?.error || 'No se pudo actualizar el producto.' };
+    } catch (error) {
+      setApiError(error.message || 'No se pudo actualizar el producto.');
+      return { error: error.message || 'No se pudo actualizar el producto.' };
+    }
   };
 
   const deleteProduct = (id) => {
@@ -235,9 +269,91 @@ export function AppProvider({ children }) {
     syncApi(() => api.deleteProduct(id));
   };
 
-  const updateStock = (id, qty) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: qty, available: qty > 0 } : p));
-    syncApi(() => api.updateProduct(id, { quantity: qty, available: qty > 0 }));
+  const updateStock = async (id, qty, note = '') => {
+    const product = products.find(p => Number(p.id) === Number(id));
+    const numericQty = Number(qty);
+    if (!Number.isInteger(numericQty) || numericQty < 0) {
+      return { error: 'Cantidad invalida.' };
+    }
+
+    if (product && Number(product.stock) !== numericQty && !String(note || '').trim()) {
+      return { error: 'La nota es obligatoria para cambios de stock.' };
+    }
+
+    const payload = {
+      quantity: numericQty,
+      available: numericQty > 0,
+      note,
+      actorId: currentUser?.id,
+      actorName: currentUser?.name,
+      actorRole: currentUser?.role,
+    };
+
+    if (!hasApi) {
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: numericQty, available: numericQty > 0 } : p));
+      return { success: true };
+    }
+
+    try {
+      const response = await api.updateProduct(id, payload);
+      if (response?.pendingApproval) {
+        await refreshProductsFromApi();
+        await fetchInventoryMovements();
+        return { success: true, pendingApproval: true };
+      }
+
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: numericQty, available: numericQty > 0 } : p));
+      await fetchInventoryMovements();
+      return { success: true };
+    } catch (error) {
+      setApiError(error.message || 'No se pudo actualizar el stock.');
+      return { error: error.message || 'No se pudo actualizar el stock.' };
+    }
+  };
+
+  const fetchInventoryMovements = async () => {
+    if (!hasApi || currentUser?.role !== 'admin') return [];
+    try {
+      const response = await api.getInventoryMovements();
+      if (response?.ok && Array.isArray(response.movements)) {
+        setInventoryMovements(response.movements);
+        return response.movements;
+      }
+    } catch (error) {
+      setApiError(error.message || 'No se pudieron cargar los movimientos de inventario.');
+    }
+    return [];
+  };
+
+  const approveInventoryMovement = async (movementId) => {
+    if (!hasApi) return { error: 'No API available' };
+    try {
+      const response = await api.approveInventoryMovement(movementId, {
+        actorId: currentUser?.id,
+        actorName: currentUser?.name,
+        actorRole: 'admin',
+      });
+      await Promise.all([refreshProductsFromApi(), fetchInventoryMovements()]);
+      return response?.ok ? { success: true } : { error: response?.error || 'No se pudo aprobar el movimiento.' };
+    } catch (error) {
+      return { error: error.message || 'No se pudo aprobar el movimiento.' };
+    }
+  };
+
+  const rejectInventoryMovement = async (movementId, rejectionNote = '') => {
+    if (!hasApi) return { error: 'No API available' };
+    try {
+      const response = await api.rejectInventoryMovement(movementId, {
+        actorId: currentUser?.id,
+        actorName: currentUser?.name,
+        actorRole: 'admin',
+        rejectionNote,
+      });
+      await fetchInventoryMovements();
+      return response?.ok ? { success: true } : { error: response?.error || 'No se pudo rechazar el movimiento.' };
+    } catch (error) {
+      return { error: error.message || 'No se pudo rechazar el movimiento.' };
+    }
   };
 
   // Cart
@@ -526,6 +642,7 @@ export function AppProvider({ children }) {
       currentUser, login, logout, register, createUser, resetPassword, updatePassword,
       apiError,
       products, addProduct, updateProduct, deleteProduct, updateStock,
+      inventoryMovements, fetchInventoryMovements, approveInventoryMovement, rejectInventoryMovement,
       orders, createOrder, updateOrderStatus,
       users, toggleUserBlock,
       cart, addToCart, removeFromCart, clearCart, cartTotal, cartCount,

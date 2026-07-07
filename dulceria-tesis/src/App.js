@@ -7,6 +7,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ProductsAdmin from './pages/ProductsAdmin';
 import OrdersAdmin from './pages/OrdersAdmin';
 import InventoryAdmin from './pages/InventoryAdmin';
+import InventoryLogsAdmin from './pages/InventoryLogsAdmin';
 import UsersAdmin from './pages/UsersAdmin';
 import ReportsAdmin from './pages/ReportsAdmin';
 import CatalogPage from './pages/CatalogPage';
@@ -44,6 +45,7 @@ function AppRoutes() {
       <Route path="/admin/productos" element={<ProtectedRoute role="admin"><Layout><ProductsAdmin /></Layout></ProtectedRoute>} />
       <Route path="/admin/pedidos" element={<ProtectedRoute role="admin"><Layout><OrdersAdmin /></Layout></ProtectedRoute>} />
       <Route path="/admin/inventario" element={<ProtectedRoute role="admin"><Layout><InventoryAdmin /></Layout></ProtectedRoute>} />
+      <Route path="/admin/inventario/logs" element={<ProtectedRoute role="admin"><Layout><InventoryLogsAdmin /></Layout></ProtectedRoute>} />
       <Route path="/admin/usuarios" element={<ProtectedRoute role="admin"><Layout><UsersAdmin /></Layout></ProtectedRoute>} />
       <Route path="/admin/reportes" element={<ProtectedRoute role="admin"><Layout><ReportsAdmin /></Layout></ProtectedRoute>} />
 

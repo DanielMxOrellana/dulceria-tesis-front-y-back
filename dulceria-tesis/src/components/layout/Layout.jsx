@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import {
   LayoutDashboard, Package, ShoppingBag, ClipboardList,
-  BarChart2, Users, LogOut, Menu, X, Bell, ShoppingCart, ChevronRight
+  BarChart2, Users, LogOut, Menu, X, Bell, ShoppingCart, FileText
 } from 'lucide-react';
 import './Layout.css';
 
@@ -13,6 +13,7 @@ const adminNav = [
   { path: '/admin/productos', icon: Package, label: 'Productos' },
   { path: '/admin/pedidos', icon: ClipboardList, label: 'Pedidos' },
   { path: '/admin/inventario', icon: ShoppingBag, label: 'Inventario' },
+  { path: '/admin/inventario/logs', icon: FileText, label: 'Logs inventario' },
   { path: '/admin/usuarios', icon: Users, label: 'Usuarios' },
   { path: '/admin/reportes', icon: BarChart2, label: 'Reportes' },
 ];

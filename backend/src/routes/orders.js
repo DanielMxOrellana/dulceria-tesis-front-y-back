@@ -72,6 +72,73 @@ function buildOrderCode(orderId) {
   return `PED-${String(orderId).padStart(8, "0")}`;
 }
 
+async function ensureMovementTable(conn) {
+  await query(
+    conn,
+    `
+      CREATE TABLE IF NOT EXISTS ${schema}.inventory_movements (
+        id SERIAL PRIMARY KEY,
+        candy_id INTEGER NOT NULL,
+        candy_name VARCHAR(255) NOT NULL,
+        actor_id TEXT,
+        actor_name VARCHAR(120),
+        actor_role VARCHAR(20) NOT NULL DEFAULT 'admin',
+        movement_type VARCHAR(20) NOT NULL,
+        quantity_before INTEGER NOT NULL,
+        quantity_after INTEGER NOT NULL,
+        delta INTEGER NOT NULL,
+        note TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'approved',
+        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        approved_at TIMESTAMP,
+        approved_by_id TEXT,
+        approved_by_name VARCHAR(120),
+        rejection_note TEXT
+      )
+    `
+  );
+}
+
+async function insertInventoryMovement(conn, movement) {
+  await ensureMovementTable(conn);
+
+  await query(
+    conn,
+    `
+      INSERT INTO ${schema}.inventory_movements (
+        candy_id,
+        candy_name,
+        actor_id,
+        actor_name,
+        actor_role,
+        movement_type,
+        quantity_before,
+        quantity_after,
+        delta,
+        note,
+        status,
+        approved_at,
+        approved_by_id,
+        approved_by_name
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?)
+    `,
+    [
+      movement.candyId,
+      movement.candyName,
+      movement.actorId || null,
+      movement.actorName || "Sistema",
+      movement.actorRole || "system",
+      movement.delta > 0 ? "ingreso" : "salida",
+      movement.quantityBefore,
+      movement.quantityAfter,
+      movement.delta,
+      movement.note,
+      movement.approvedById || null,
+      movement.approvedByName || "Sistema",
+    ]
+  );
+}
+
 router.post("/", async (req, res) => {
   const body = req.body || {};
 
@@ -151,7 +218,7 @@ router.post("/", async (req, res) => {
         ? await query(
           conn,
           `
-              SELECT candy_id, quantity
+              SELECT candy_id, candy_name, quantity
               FROM ${schema}.inventory
               WHERE candy_id IN (${placeholders})
               FOR UPDATE
@@ -178,6 +245,7 @@ router.post("/", async (req, res) => {
       for (const [candyId, requestedQty] of itemTotalsByCandy.entries()) {
         const currentQty = inventoryById.get(candyId);
         const nextQty = currentQty - requestedQty;
+        const inventoryItem = inventoryRows.find((row) => Number(row.CANDY_ID ?? row.candy_id) === candyId);
 
         await query(
           conn,
@@ -190,6 +258,19 @@ router.post("/", async (req, res) => {
           `,
           [nextQty, nextQty > 0, candyId]
         );
+
+        await insertInventoryMovement(conn, {
+          candyId,
+          candyName: inventoryItem?.CANDY_NAME ?? inventoryItem?.candy_name ?? `Dulce ${candyId}`,
+          actorId: userId || null,
+          actorName: customerName,
+          actorRole: "cliente",
+          quantityBefore: currentQty,
+          quantityAfter: nextQty,
+          delta: -requestedQty,
+          note: `Salida automatica por creacion de pedido para ${customerName}.`,
+          approvedByName: "Sistema",
+        });
       }
 
       const customerRows = await query(
@@ -605,7 +686,7 @@ router.put("/:id/status", async (req, res) => {
                   available = (quantity + ?) > 0,
                   updated_at = CURRENT_TIMESTAMP
               WHERE candy_id = ?
-              RETURNING candy_id
+              RETURNING candy_id, candy_name, quantity
             `,
             [qty, qty, candyId]
           );
@@ -613,6 +694,19 @@ router.put("/:id/status", async (req, res) => {
           if (!updated.length) {
             throw new Error(`No se pudo reponer stock para el dulce ${candyId}`);
           }
+
+          const quantityAfter = Number(updated[0].QUANTITY ?? updated[0].quantity ?? 0);
+          await insertInventoryMovement(conn, {
+            candyId,
+            candyName: updated[0].CANDY_NAME ?? updated[0].candy_name ?? `Dulce ${candyId}`,
+            actorName: "Sistema",
+            actorRole: "system",
+            quantityBefore: quantityAfter - qty,
+            quantityAfter,
+            delta: qty,
+            note: `Ingreso automatico por pedido ${orderId} marcado como ${nextStatus}.`,
+            approvedByName: "Sistema",
+          });
         }
       }
 

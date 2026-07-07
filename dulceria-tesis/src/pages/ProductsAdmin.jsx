@@ -15,6 +15,7 @@ export default function ProductsAdmin() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [stockNoteModal, setStockNoteModal] = useState(null);
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -52,8 +53,43 @@ export default function ProductsAdmin() {
   const save = (e) => {
     e.preventDefault();
     const data = { ...form, price: parseFloat(form.price), stock: parseInt(form.stock), minStock: parseInt(form.minStock) };
-    if (editId) updateProduct(editId, data);
+    if (editId) {
+      const currentProduct = products.find((product) => product.id === editId);
+      if (currentProduct && Number(currentProduct.stock) !== Number(data.stock)) {
+        setStockNoteModal({
+          productId: editId,
+          productName: currentProduct.name,
+          previousStock: Number(currentProduct.stock),
+          nextStock: Number(data.stock),
+          data,
+          note: '',
+          error: '',
+          isSubmitting: false,
+        });
+        return;
+      } else {
+        updateProduct(editId, data);
+      }
+    }
     else addProduct(data);
+    setModal(null);
+  };
+
+  const saveWithStockNote = async () => {
+    if (!stockNoteModal) return;
+    const note = stockNoteModal.note.trim();
+    if (!note) {
+      setStockNoteModal(prev => ({ ...prev, error: 'La nota es obligatoria para registrar el movimiento.' }));
+      return;
+    }
+
+    setStockNoteModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
+    const result = await updateProduct(stockNoteModal.productId, { ...stockNoteModal.data, note });
+    if (result?.error) {
+      setStockNoteModal(prev => ({ ...prev, isSubmitting: false, error: result.error }));
+      return;
+    }
+    setStockNoteModal(null);
     setModal(null);
   };
 
@@ -177,16 +213,63 @@ export default function ProductsAdmin() {
         </div>
       )}
 
+      {stockNoteModal && (
+        <div className="modal-overlay" onClick={() => !stockNoteModal.isSubmitting && setStockNoteModal(null)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h2>Nota de movimiento</h2>
+                <p className="section-subtitle">{stockNoteModal.productName}</p>
+              </div>
+              <button className="btn btn-secondary btn-sm" disabled={stockNoteModal.isSubmitting} onClick={() => setStockNoteModal(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+                <div className="card" style={{ padding: 14 }}>
+                  <p style={{ color: 'var(--gray-400)', fontSize: '0.78rem' }}>Stock actual</p>
+                  <strong>{stockNoteModal.previousStock}</strong>
+                </div>
+                <div className="card" style={{ padding: 14 }}>
+                  <p style={{ color: 'var(--gray-400)', fontSize: '0.78rem' }}>Nuevo stock</p>
+                  <strong>{stockNoteModal.nextStock}</strong>
+                </div>
+                <div className="card" style={{ padding: 14 }}>
+                  <p style={{ color: 'var(--gray-400)', fontSize: '0.78rem' }}>Movimiento</p>
+                  <strong>{stockNoteModal.nextStock - stockNoteModal.previousStock > 0 ? '+' : ''}{stockNoteModal.nextStock - stockNoteModal.previousStock}</strong>
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Explicación obligatoria</label>
+                <textarea
+                  rows={4}
+                  value={stockNoteModal.note}
+                  onChange={(event) => setStockNoteModal(prev => ({ ...prev, note: event.target.value, error: '' }))}
+                  placeholder="Ej. Reposición de proveedor, ajuste por conteo físico, salida por merma..."
+                  autoFocus
+                />
+              </div>
+              {stockNoteModal.error && <p style={{ color: 'var(--danger)', marginTop: 10 }}>{stockNoteModal.error}</p>}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" disabled={stockNoteModal.isSubmitting} onClick={() => setStockNoteModal(null)}>Cancelar</button>
+              <button className="btn btn-primary" disabled={stockNoteModal.isSubmitting} onClick={saveWithStockNote}>Guardar movimiento</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirm */}
       {confirmDelete && (
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: 380, textAlign: 'center' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>⚠️</div>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: 8 }}>¿Eliminar producto?</h2>
-            <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem', marginBottom: 24 }}>Esta acción no se puede deshacer.</p>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: 8 }}>¿Desactivar producto?</h2>
+            <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem', marginBottom: 24 }}>El producto se ocultará del catálogo pero se conservará en la base de datos.</p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>Cancelar</button>
-              <button className="btn btn-danger" onClick={doDelete}>Eliminar</button>
+              <button className="btn btn-danger" onClick={doDelete}>Desactivar</button>
             </div>
           </div>
         </div>

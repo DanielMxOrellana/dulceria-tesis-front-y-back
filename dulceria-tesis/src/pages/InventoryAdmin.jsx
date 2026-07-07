@@ -1,23 +1,41 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { AlertTriangle, XCircle, CheckCircle, Edit3 } from 'lucide-react';
+import { AlertTriangle, XCircle, CheckCircle, Edit3, FileText } from 'lucide-react';
 
 export default function InventoryAdmin() {
   const { products, updateStock } = useApp();
   const [editing, setEditing] = useState(null);
   const [newStock, setNewStock] = useState('');
+  const [stockNote, setStockNote] = useState('');
+  const [error, setError] = useState('');
 
-  const saveStock = (id) => {
+  const saveStock = async (id) => {
     const qty = parseInt(newStock);
-    if (!isNaN(qty) && qty >= 0) updateStock(id, qty);
+    if (isNaN(qty) || qty < 0) {
+      setError('Ingresa una cantidad valida.');
+      return;
+    }
+    if (!stockNote.trim()) {
+      setError('La nota es obligatoria para actualizar stock.');
+      return;
+    }
+    const result = await updateStock(id, qty, stockNote);
+    if (result?.error) {
+      setError(result.error);
+      return;
+    }
     setEditing(null);
+    setNewStock('');
+    setStockNote('');
+    setError('');
   };
 
   const outOfStock = products.filter(p => p.stock === 0);
   const lowStock = products.filter(p => p.stock > 0 && p.stock <= p.minStock);
   const ok = products.filter(p => p.stock > p.minStock);
 
-  const Section = ({ title, items, icon: Icon, color, badgeClass }) => (
+  const renderSection = ({ title, items, icon: Icon, color, badgeClass }) => (
     <div className="card" style={{ marginBottom: 20 }}>
          <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <Icon size={18} color={color} />
@@ -51,18 +69,25 @@ export default function InventoryAdmin() {
                   <td style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>{p.minStock} und.</td>
                   <td>
                     {editing === p.id ? (
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <div style={{ display: 'grid', gap: 6, minWidth: 220 }}>
                         <input
                           type="number" min="0" value={newStock}
                           onChange={e => setNewStock(e.target.value)}
                           style={{ width: 80, padding: '5px 8px', borderRadius: 8, border: '1.5px solid var(--pink-400)', fontSize: '0.9rem', outline: 'none' }}
                           autoFocus
                         />
-                        <button className="btn btn-success btn-sm" onClick={() => saveStock(p.id)}>✓</button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>✕</button>
+                        <textarea
+                          value={stockNote}
+                          onChange={e => setStockNote(e.target.value)}
+                          placeholder="Nota del movimiento"
+                          rows={2}
+                          style={{ padding: '7px 9px', borderRadius: 8, border: '1.5px solid var(--gray-200)', fontSize: '0.85rem', resize: 'vertical' }}
+                        />
+                        <button className="btn btn-success btn-sm" onClick={() => saveStock(p.id)}>Guardar</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(null); setStockNote(''); setError(''); }}>Cancelar</button>
                       </div>
                     ) : (
-                      <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(p.id); setNewStock(p.stock); }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(p.id); setNewStock(p.stock); setStockNote(''); setError(''); }}>
                         <Edit3 size={13} /> Actualizar
                       </button>
                     )}
@@ -80,7 +105,10 @@ export default function InventoryAdmin() {
     <div>
       <div className="page-header">
         <div><h1>Inventario</h1><p>Control de stock de productos</p></div>
+        <Link to="/admin/inventario/logs" className="btn btn-secondary"><FileText size={16} /> Ver logs</Link>
       </div>
+
+      {error && <div className="card" style={{ padding: 14, marginBottom: 18, color: 'var(--danger)' }}>{error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
         {[
@@ -98,9 +126,9 @@ export default function InventoryAdmin() {
         ))}
       </div>
 
-      <Section title="Sin Stock — Requieren reposición urgente" items={outOfStock} icon={XCircle} color="var(--danger)" badgeClass="badge-danger" />
-      <Section title="Stock Bajo — Por debajo del mínimo" items={lowStock} icon={AlertTriangle} color="#c17d00" badgeClass="badge-warning" />
-      <Section title="Stock Normal" items={ok} icon={CheckCircle} color="var(--success)" badgeClass="badge-success" />
+      {renderSection({ title: "Sin Stock — Requieren reposición urgente", items: outOfStock, icon: XCircle, color: "var(--danger)", badgeClass: "badge-danger" })}
+      {renderSection({ title: "Stock Bajo — Por debajo del mínimo", items: lowStock, icon: AlertTriangle, color: "#c17d00", badgeClass: "badge-warning" })}
+      {renderSection({ title: "Stock Normal", items: ok, icon: CheckCircle, color: "var(--success)", badgeClass: "badge-success" })}
     </div>
   );
 }

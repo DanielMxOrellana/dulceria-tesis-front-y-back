@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardList,
+  Clock,
   Edit3,
   Eye,
   Package,
@@ -55,6 +56,9 @@ export default function VendorDashboard({ section = 'dashboard' }) {
   const [showWarningsModal, setShowWarningsModal] = useState(false);
   const [pendingProductData, setPendingProductData] = useState(null);
   const [rejectConfirmOrder, setRejectConfirmOrder] = useState(null);
+  const [stockMessage, setStockMessage] = useState('');
+  const [stockDrafts, setStockDrafts] = useState({});
+  const [stockRequest, setStockRequest] = useState(null);
 
   const vendorProducts = useMemo(
     () => products,
@@ -240,7 +244,18 @@ export default function VendorDashboard({ section = 'dashboard' }) {
   };
 
   const executeSave = (productData) => {
-    if (editingId) updateProduct(editingId, productData);
+    if (editingId) {
+      const currentProduct = products.find((product) => product.id === editingId);
+      if (currentProduct && Number(currentProduct.stock) !== Number(productData.stock)) {
+        openStockRequest(currentProduct, Number(productData.stock), { productData });
+        setShowWarningsModal(false);
+        setPendingProductData(null);
+        setWarnings([]);
+        return;
+      } else {
+        updateProduct(editingId, productData);
+      }
+    }
     else addProduct(productData);
 
     resetForm();
@@ -250,9 +265,87 @@ export default function VendorDashboard({ section = 'dashboard' }) {
     setWarnings([]);
   };
 
+  const openStockRequest = (product, requestedStock, extra = {}) => {
+    if (!product || Number.isNaN(Number(requestedStock))) return;
+    const nextStock = Math.max(0, Number.parseInt(requestedStock, 10));
+    if (Number(product.stock) === nextStock) return;
+    setStockRequest({
+      product,
+      requestedStock: nextStock,
+      note: '',
+      error: '',
+      isSubmitting: false,
+      productData: extra.productData || null,
+    });
+  };
+
+  const closeStockRequest = () => {
+    if (stockRequest?.product?.id) {
+      setStockDrafts((prev) => {
+        const next = { ...prev };
+        delete next[stockRequest.product.id];
+        return next;
+      });
+    }
+    setStockRequest(null);
+  };
+
+  const submitStockRequest = async () => {
+    if (!stockRequest) return;
+    const note = stockRequest.note.trim();
+    if (!note) {
+      setStockRequest((prev) => ({ ...prev, error: 'La nota es obligatoria para solicitar el movimiento.' }));
+      return;
+    }
+
+    setStockRequest((prev) => ({ ...prev, isSubmitting: true, error: '' }));
+
+    const result = stockRequest.productData
+      ? await updateProduct(editingId, { ...stockRequest.productData, note })
+      : await updateStock(stockRequest.product.id, stockRequest.requestedStock, note);
+
+    if (result?.error) {
+      setStockRequest((prev) => ({ ...prev, isSubmitting: false, error: result.error }));
+      return;
+    }
+
+    setStockDrafts((prev) => {
+      const next = { ...prev };
+      delete next[stockRequest.product.id];
+      return next;
+    });
+    setStockMessage('Solicitud enviada al administrador. El stock cambiará cuando sea aprobada.');
+    setStockRequest(null);
+
+    if (stockRequest.productData) {
+      resetForm();
+      setShowForm(false);
+      setPendingProductData(null);
+      setWarnings([]);
+    }
+  };
+
   const handleStockChange = (productId, value) => {
+    setStockDrafts((prev) => ({ ...prev, [productId]: value }));
+  };
+
+  const commitStockDraft = (product) => {
+    const value = stockDrafts[product.id];
+    if (value === undefined || value === '') return;
     const qty = Number.parseInt(value, 10);
-    if (!Number.isNaN(qty) && qty >= 0) updateStock(productId, qty);
+    if (Number.isNaN(qty) || qty < 0) {
+      setStockMessage('Ingresa una cantidad válida para solicitar el movimiento.');
+      return;
+    }
+    if (Number(product.stock) === qty) {
+      setStockDrafts((prev) => {
+        const next = { ...prev };
+        delete next[product.id];
+        return next;
+      });
+      return;
+    }
+    openStockRequest(product, qty);
   };
 
   const handleMinStockChange = (product, value) => {
@@ -345,6 +438,12 @@ export default function VendorDashboard({ section = 'dashboard' }) {
           {pendingOrders > 0 && <span><ClipboardList size={16} /> {pendingOrders} pedidos pendientes por responder</span>}
           {lowStockProducts.length > 0 && <span><AlertTriangle size={16} /> {lowStockProducts.length} productos llegaron al stock minimo</span>}
           {outOfStockProducts.length > 0 && <span><XCircle size={16} /> {outOfStockProducts.length} productos agotados</span>}
+        </div>
+      )}
+
+      {stockMessage && (
+        <div className="vendor-alerts">
+          <span><Clock size={16} /> {stockMessage}</span>
         </div>
       )}
 
@@ -538,7 +637,19 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                       <td>{product.category}</td>
                       <td>{money(product.price)}</td>
                       <td>
-                        <input className="stock-input" type="number" min="0" value={product.stock} onChange={(event) => handleStockChange(product.id, event.target.value)} />
+                        <input
+                          className="stock-input"
+                          type="number"
+                          min="0"
+                          value={stockDrafts[product.id] ?? product.stock}
+                          onChange={(event) => handleStockChange(product.id, event.target.value)}
+                          onBlur={() => commitStockDraft(product)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.currentTarget.blur();
+                            }
+                          }}
+                        />
                       </td>
                       <td>
                         <input className="stock-input" type="number" min="0" value={product.minStock} onChange={(event) => handleMinStockChange(product, event.target.value)} />
@@ -552,8 +663,8 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                         <button className="btn btn-secondary btn-sm" onClick={() => openEditProductForm(product)}>
                           <Edit3 size={14} /> Editar
                         </button>
-                        <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm('Eliminar este producto?')) deleteProduct(product.id); }}>
-                          <Trash2 size={14} /> Eliminar
+                        <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm('¿Desactivar este producto? Se ocultará del catálogo pero permanecerá en la base de datos.')) deleteProduct(product.id); }}>
+                          <Trash2 size={14} /> Desactivar
                         </button>
                       </td>
                     </tr>
@@ -583,9 +694,21 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                   <p className="text-muted">Minimo: {product.minStock} unidades</p>
                 </div>
                 <div className="inventory-controls">
-                  <button className="btn btn-secondary btn-sm" onClick={() => updateStock(product.id, Math.max(0, product.stock - 1))}>-1</button>
-                  <input className="stock-input" type="number" min="0" value={product.stock} onChange={(event) => handleStockChange(product.id, event.target.value)} />
-                  <button className="btn btn-secondary btn-sm" onClick={() => updateStock(product.id, product.stock + 1)}>+1</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openStockRequest(product, Math.max(0, product.stock - 1))}>-1</button>
+                  <input
+                    className="stock-input"
+                    type="number"
+                    min="0"
+                    value={stockDrafts[product.id] ?? product.stock}
+                    onChange={(event) => handleStockChange(product.id, event.target.value)}
+                    onBlur={() => commitStockDraft(product)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                  />
+                  <button className="btn btn-secondary btn-sm" onClick={() => openStockRequest(product, product.stock + 1)}>+1</button>
                 </div>
               </div>
             ))}
@@ -671,6 +794,60 @@ export default function VendorDashboard({ section = 'dashboard' }) {
         </section>
       )}
 
+
+      {stockRequest && (
+        <div className="modal-overlay" onClick={() => !stockRequest.isSubmitting && closeStockRequest()}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h2>Solicitar movimiento de stock</h2>
+                <p className="section-subtitle">{stockRequest.product.name}</p>
+              </div>
+              <button className="btn btn-secondary btn-sm" disabled={stockRequest.isSubmitting} onClick={closeStockRequest}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="vendor-summary-grid" style={{ marginBottom: 16 }}>
+                <div className="summary-panel">
+                  <h3>Stock actual</h3>
+                  <p>{stockRequest.product.stock}</p>
+                </div>
+                <div className="summary-panel">
+                  <h3>Solicitado</h3>
+                  <p>{stockRequest.requestedStock}</p>
+                </div>
+                <div className="summary-panel">
+                  <h3>Movimiento</h3>
+                  <p>{stockRequest.requestedStock - stockRequest.product.stock > 0 ? '+' : ''}{stockRequest.requestedStock - stockRequest.product.stock}</p>
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Nota obligatoria</label>
+                <textarea
+                  rows={4}
+                  value={stockRequest.note}
+                  onChange={(event) => setStockRequest((prev) => ({ ...prev, note: event.target.value, error: '' }))}
+                  placeholder="Ej. Reposición por compra a proveedor, ajuste por merma, salida por inventario físico..."
+                  autoFocus
+                />
+              </div>
+              {stockRequest.error && <div className="form-error" style={{ marginTop: 12 }}>{stockRequest.error}</div>}
+              <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginTop: 12 }}>
+                El stock no cambiará hasta que el administrador apruebe esta solicitud.
+              </p>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" disabled={stockRequest.isSubmitting} onClick={closeStockRequest}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" disabled={stockRequest.isSubmitting} onClick={submitStockRequest}>
+                <Save size={14} /> Enviar solicitud
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {liveSelectedOrder && (
         <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
