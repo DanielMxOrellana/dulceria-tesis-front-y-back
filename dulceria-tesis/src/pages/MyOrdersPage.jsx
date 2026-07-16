@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, Check, XCircle } from 'lucide-react';
 import { STATUS_COLORS } from '../data/mockData';
 import { getOrderProgressWidth, getOrderStepIndex, normalizeOrderStatusLabel, ORDER_STATUS_STEPS } from '../utils/orderFlow';
 
 export default function MyOrdersPage() {
-  const { orders, currentUser } = useApp();
+  const { orders, currentUser, markRejectionsSeen } = useApp();
   const [selected, setSelected] = useState(null);
 
   const myOrders = orders.filter(o => o.clientId === currentUser?.id);
+
+  useEffect(() => {
+    markRejectionsSeen();
+  }, [myOrders.length]);
 
   const getStepIndex = (status) => {
     const index = getOrderStepIndex(status);
@@ -59,7 +63,7 @@ export default function MyOrdersPage() {
                           return (
                           <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1, position: 'relative' }}>
                             <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: isCompleted ? 'white' : 'var(--gray-300)', fontWeight: 700, border: `2px solid ${isCompleted ? 'var(--pink-500)' : 'var(--gray-200)'}`, zIndex: 1, background: isCompleted ? 'var(--pink-500)' : 'white' }}>
-                              {isCompleted ? '✓' : i + 1}
+                              {isCompleted ? <Check size={14} /> : i + 1}
                             </div>
                             <span style={{ fontSize: '0.68rem', color: isCompleted ? 'var(--pink-600)' : 'var(--gray-400)', fontWeight: i === currentStep ? 700 : 400, textAlign: 'center', whiteSpace: 'nowrap' }}>{s}</span>
                           </div>
@@ -71,7 +75,12 @@ export default function MyOrdersPage() {
 
                   {normalizeOrderStatusLabel(o.status) === 'rechazado' && (
                     <div style={{ background: '#fdecea', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16, color: 'var(--danger)', fontSize: '0.88rem' }}>
-                      ❌ Tu pedido fue rechazado. Contacta con nosotros para más información.
+                      <p style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                        <XCircle size={16} /> Tu pedido fue rechazado.
+                      </p>
+                      <p style={{ margin: '6px 0 0' }}>
+                        <strong>Motivo:</strong> {o.rejectionReason || 'No se especificó un motivo. Contacta con nosotros para más información.'}
+                      </p>
                     </div>
                   )}
 
@@ -85,15 +94,15 @@ export default function MyOrdersPage() {
                     ))}
                     {o.packaging && (
                       <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: 'var(--gray-500)' }}>
-                        <strong>Empaque:</strong> {o.packaging.emoji} {o.packaging.nombre} · ${o.packaging.precio.toFixed(2)}
+                        <strong>Empaque:</strong> {o.packaging.nombre} · ${o.packaging.precio.toFixed(2)}
                       </div>
                     )}
                     {o.customer && (
                       <div style={{ marginTop: 10, padding: '10px 12px', background: '#fef8e7', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: '#7a5a00' }}>
-                        <strong>Datos personales:</strong> {o.customer.name}{o.customer.phone ? ` · ${o.customer.phone}` : ''}{o.customer.address ? ` · ${o.customer.address}` : ''}
+                        <strong>{o.customer.deliveryType === 'retiro' ? 'Retiro en el local' : 'Entrega a domicilio'}:</strong> {o.customer.name}{o.customer.phone ? ` · ${o.customer.phone}` : ''}{o.customer.address ? ` · ${o.customer.address}` : ''}
                       </div>
                     )}
-                    {o.notes && <p style={{ marginTop: 10, color: 'var(--gray-400)', fontSize: '0.85rem' }}>📝 {o.notes}</p>}
+                    {o.notes && <p style={{ marginTop: 10, color: 'var(--gray-400)', fontSize: '0.85rem' }}><strong>Nota:</strong> {o.notes}</p>}
                   </div>
                 </div>
               )}

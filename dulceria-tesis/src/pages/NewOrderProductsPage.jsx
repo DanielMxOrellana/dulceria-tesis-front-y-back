@@ -65,7 +65,7 @@ export default function NewOrderProductsPage() {
       <div className="card" style={{ padding: '24px', marginBottom: 18, overflow: 'visible' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>Empaque actual: {selectedPackaging ? `${selectedPackaging.emoji} ${selectedPackaging.nombre}` : 'Sin empaque'}</p>
+            <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>Empaque actual: {selectedPackaging ? selectedPackaging.nombre : 'Sin empaque'}</p>
             <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>El precio del empaque ya incluye el valor de los dulces: si necesitas más, vuelve al paso 1 y elige un empaque de mayor valor.</p>
           </div>
         </div>
@@ -74,7 +74,7 @@ export default function NewOrderProductsPage() {
           <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
             <div>
               <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Empaque seleccionado</p>
-              <p style={{ fontWeight: 700 }}>{selectedPackaging.emoji} {selectedPackaging.nombre}</p>
+              <p style={{ fontWeight: 700 }}>{selectedPackaging.nombre}</p>
             </div>
             <div>
               <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Límite disponible</p>

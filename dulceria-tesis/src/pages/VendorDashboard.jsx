@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import {
   AlertTriangle,
   CheckCircle2,
+  ChefHat,
   ClipboardList,
   Clock,
   Edit3,
@@ -56,6 +57,8 @@ export default function VendorDashboard({ section = 'dashboard' }) {
   const [showWarningsModal, setShowWarningsModal] = useState(false);
   const [pendingProductData, setPendingProductData] = useState(null);
   const [rejectConfirmOrder, setRejectConfirmOrder] = useState(null);
+  const [rejectOrderReason, setRejectOrderReason] = useState('');
+  const [rejectOrderError, setRejectOrderError] = useState('');
   const [stockMessage, setStockMessage] = useState('');
   const [stockDrafts, setStockDrafts] = useState({});
   const [stockRequest, setStockRequest] = useState(null);
@@ -89,8 +92,9 @@ export default function VendorDashboard({ section = 'dashboard' }) {
           customer: {
             name: order.customer?.name || order.clientName || client?.name || 'Cliente',
             phone: order.customer?.phone || 'No registrado',
-            address: order.customer?.address || 'No registrada',
-            reference: order.customer?.reference || 'Sin referencia',
+            deliveryType: order.customer?.deliveryType === 'retiro' ? 'retiro' : 'domicilio',
+            address: order.customer?.address || (order.customer?.deliveryType === 'retiro' ? '' : 'No registrada'),
+            reference: order.customer?.reference || (order.customer?.deliveryType === 'retiro' ? '' : 'Sin referencia'),
           },
         };
       })
@@ -353,9 +357,12 @@ export default function VendorDashboard({ section = 'dashboard' }) {
     if (!Number.isNaN(minStock) && minStock >= 0) updateProduct(product.id, { minStock });
   };
 
-  const updateOrder = (order, status) => {
-    updateOrderStatus(order.id, status);
-    setSelectedOrder((current) => (current?.id === order.id ? { ...current, status } : current));
+  const updateOrder = async (order, status, reason = '') => {
+    const result = await updateOrderStatus(order.id, status, reason);
+    if (!result?.error) {
+      setSelectedOrder((current) => (current?.id === order.id ? { ...current, status } : current));
+    }
+    return result;
   };
 
   const liveSelectedOrder = selectedOrder
@@ -364,12 +371,24 @@ export default function VendorDashboard({ section = 'dashboard' }) {
 
   const requestRejectOrder = (order) => {
     setRejectConfirmOrder(order);
+    setRejectOrderReason('');
+    setRejectOrderError('');
   };
 
-  const confirmRejectOrder = () => {
+  const confirmRejectOrder = async () => {
     if (!rejectConfirmOrder) return;
-    updateOrder(rejectConfirmOrder, 'rechazado');
+    if (!rejectOrderReason.trim()) {
+      setRejectOrderError('El motivo del rechazo es obligatorio.');
+      return;
+    }
+    const result = await updateOrder(rejectConfirmOrder, 'rechazado', rejectOrderReason.trim());
+    if (result?.error) {
+      setRejectOrderError(result.error);
+      return;
+    }
     setRejectConfirmOrder(null);
+    setRejectOrderReason('');
+    setRejectOrderError('');
   };
 
   const renderOrderActions = (order) => (
@@ -386,12 +405,12 @@ export default function VendorDashboard({ section = 'dashboard' }) {
       )}
       {order.status === 'aceptado' && (
         <button className="btn btn-primary btn-sm" onClick={() => updateOrder(order, 'en preparacion')}>
-          🍳 Preparar
+          <ChefHat size={14} /> Preparar
         </button>
       )}
       {order.status === 'en preparacion' && (
         <button className="btn btn-primary btn-sm" onClick={() => updateOrder(order, 'listo')}>
-          ✅ Listo
+          <CheckCircle2 size={14} /> Listo
         </button>
       )}
       {order.status === 'listo' && (
@@ -867,9 +886,17 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                   <p><strong>Nombre:</strong> {liveSelectedOrder.customer.name}</p>
                   <p><strong>Correo:</strong> {liveSelectedOrder.clientEmail}</p>
                   <p><strong>Telefono:</strong> {liveSelectedOrder.customer.phone}</p>
-                  <p><strong>Direccion:</strong> {liveSelectedOrder.customer.address}</p>
-                  <p className="customer-grid__wide"><strong>Referencia:</strong> {liveSelectedOrder.customer.reference}</p>
+                  <p><strong>Entrega:</strong> {liveSelectedOrder.customer.deliveryType === 'retiro' ? 'Retiro en el local' : 'A domicilio'}</p>
+                  {liveSelectedOrder.customer.deliveryType !== 'retiro' && (
+                    <>
+                      <p><strong>Direccion:</strong> {liveSelectedOrder.customer.address}</p>
+                      <p className="customer-grid__wide"><strong>Referencia:</strong> {liveSelectedOrder.customer.reference}</p>
+                    </>
+                  )}
                   <p className="customer-grid__wide"><strong>Notas:</strong> {liveSelectedOrder.notes || 'Sin notas'}</p>
+                  {liveSelectedOrder.status === 'rechazado' && liveSelectedOrder.rejectionReason && (
+                    <p className="customer-grid__wide"><strong>Motivo del rechazo:</strong> {liveSelectedOrder.rejectionReason}</p>
+                  )}
                 </div>
               </div>
 
@@ -917,9 +944,20 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                 ¿Confirmas que deseas rechazar el pedido <strong>{rejectConfirmOrder.id}</strong> de{' '}
                 <strong>{rejectConfirmOrder.customer.name}</strong>?
               </p>
-              <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: 0 }}>
-                El stock de los productos incluidos se repondrá automáticamente en el inventario.
+              <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: 16 }}>
+                El stock de los productos incluidos se repondrá automáticamente en el inventario. El cliente verá el motivo que escribas aquí.
               </p>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Motivo del rechazo</label>
+                <textarea
+                  rows={3}
+                  value={rejectOrderReason}
+                  onChange={(e) => { setRejectOrderReason(e.target.value); setRejectOrderError(''); }}
+                  placeholder="Ej. Producto sin stock, datos de contacto incorrectos, pedido duplicado..."
+                  autoFocus
+                />
+              </div>
+              {rejectOrderError && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: 10 }}>{rejectOrderError}</p>}
             </div>
             <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setRejectConfirmOrder(null)}>

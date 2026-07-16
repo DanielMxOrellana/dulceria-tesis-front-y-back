@@ -10,10 +10,18 @@ const sslConfig = getEnv("PGSSLMODE", "disable") === "require"
 
 const databaseUrl = getEnv("DATABASE_URL", "").trim();
 
+const poolResilienceConfig = {
+  keepAlive: true,
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 10,
+};
+
 const pool = databaseUrl
   ? new Pool({
     connectionString: databaseUrl,
     ssl: sslConfig,
+    ...poolResilienceConfig,
   })
   : new Pool({
     host: getEnv("PGHOST", "localhost"),
@@ -22,7 +30,15 @@ const pool = databaseUrl
     user: getEnv("PGUSER", "postgres"),
     password: getEnv("PGPASSWORD", "postgres"),
     ssl: sslConfig,
+    ...poolResilienceConfig,
   });
+
+// Sin este manejador, un reset de conexion inactiva del lado del servidor
+// (comun en el pooler de Supabase) emite un 'error' no capturado en el Pool
+// y tumba el proceso de Node entero.
+pool.on("error", (err) => {
+  console.error("Error inesperado en el pool de PostgreSQL:", err.message);
+});
 
 function toPgSql(sql = "") {
   let i = 0;

@@ -18,6 +18,7 @@ const STATUS_MAP = {
 };
 
 const VALID_STATUSES = new Set(["pending", "confirmed", "rejected", "delivered", "cancelled", "preparado", "ready"]);
+const VALID_DELIVERY_TYPES = new Set(["domicilio", "retiro"]);
 
 function validateAdmin(req, res, next) {
   const password = req.headers["x-admin-password"] || req.body.adminPassword;
@@ -151,7 +152,9 @@ router.post("/", async (req, res) => {
   const customerReference = String(body.customerReference || "").trim();
   const deliveryDate = String(body.deliveryDate || "").trim();
   const deliveryTime = String(body.deliveryTime || "").trim();
-  const deliveryType = String(body.deliveryType || "domicilio").trim();
+  const deliveryType = VALID_DELIVERY_TYPES.has(String(body.deliveryType || "").trim())
+    ? String(body.deliveryType).trim()
+    : "domicilio";
   const userId = String(body.userId || "").trim();
   const containerType = String(body.containerType || "").trim();
   const containerName = String(body.containerName || "").trim();
@@ -178,12 +181,18 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ ok: false, error: "customerPhone es invalido" });
   }
 
-  if (!customerAddress) {
-    return res.status(400).json({ ok: false, error: "customerAddress es requerido" });
-  }
+  if (deliveryType === "domicilio") {
+    if (!customerAddress) {
+      return res.status(400).json({ ok: false, error: "customerAddress es requerido para entrega a domicilio" });
+    }
 
-  if (!customerCity) {
-    return res.status(400).json({ ok: false, error: "customerCity es requerido" });
+    if (!customerCity) {
+      return res.status(400).json({ ok: false, error: "customerCity es requerido para entrega a domicilio" });
+    }
+
+    if (!customerReference) {
+      return res.status(400).json({ ok: false, error: "customerReference es requerido para entrega a domicilio" });
+    }
   }
 
   if (!containerType || !containerName) {
@@ -345,9 +354,9 @@ router.post("/", async (req, res) => {
           customerName,
           customerEmail,
           customerPhone,
-          customerAddress,
-          customerCity,
-          customerReference,
+          customerAddress || null,
+          customerCity || null,
+          customerReference || null,
           deliveryDate,
           deliveryTime,
           deliveryType,
@@ -457,6 +466,7 @@ router.get("/", async (req, res) => {
             notes,
             total,
             status,
+            rejection_reason,
             created_at
           FROM orders
           ${userId ? "WHERE user_id = ?" : ""}
@@ -531,6 +541,7 @@ router.get("/", async (req, res) => {
           notes: order.NOTES ?? order.notes,
           total: Number(order.TOTAL ?? order.total ?? 0),
           status: order.STATUS ?? order.status,
+          rejectionReason: order.REJECTION_REASON ?? order.rejection_reason,
           userId: order.USER_ID ?? order.user_id,
           createdAt: order.CREATED_AT ?? order.created_at,
           items: items
@@ -632,6 +643,7 @@ router.get("/:id/history", validateAdmin, async (req, res) => {
 router.put("/:id/status", async (req, res) => {
   const orderId = Number(req.params.id);
   const nextStatus = normalizeStatus(req.body?.status, "");
+  const rejectionReason = String(req.body?.rejectionReason || "").trim();
 
   const validStatuses = ['pending', 'confirmed', 'rejected', 'delivered', 'cancelled', 'preparado', 'ready'];
   if (!validStatuses.includes(nextStatus)) {
@@ -644,6 +656,10 @@ router.put("/:id/status", async (req, res) => {
 
   if (!nextStatus) {
     return res.status(400).json({ ok: false, error: "status es requerido" });
+  }
+
+  if (nextStatus === "rejected" && !rejectionReason) {
+    return res.status(400).json({ ok: false, error: "rejectionReason es requerido para rechazar un pedido" });
   }
 
   const STOCK_RESTORE_STATUSES = new Set(["rejected", "cancelled"]);
@@ -710,13 +726,18 @@ router.put("/:id/status", async (req, res) => {
         }
       }
 
-      await query(conn, "UPDATE orders SET status = ? WHERE id = ?", [nextStatus, orderId]);
+      if (nextStatus === "rejected") {
+        await query(conn, "UPDATE orders SET status = ?, rejection_reason = ? WHERE id = ?", [nextStatus, rejectionReason, orderId]);
+      } else {
+        await query(conn, "UPDATE orders SET status = ? WHERE id = ?", [nextStatus, orderId]);
+      }
       await query(conn, "INSERT INTO order_status_history (order_id, status) VALUES (?, ?)", [orderId, nextStatus]);
 
       return {
         id: orderId,
         previousStatus,
         status: nextStatus,
+        rejectionReason: nextStatus === "rejected" ? rejectionReason : null,
         stockRestored: shouldRestoreStock,
       };
     });

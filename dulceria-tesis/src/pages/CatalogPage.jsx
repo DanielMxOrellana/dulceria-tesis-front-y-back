@@ -56,7 +56,7 @@ export default function CatalogPage() {
 
       {filtered.length === 0 ? (
         <div className="empty-state" style={{ padding: '80px 20px' }}>
-          <span style={{ fontSize: '3rem' }}>🔍</span>
+          <Search size={40} color="var(--gray-300)" />
           <p>No encontramos productos con ese criterio</p>
         </div>
       ) : (
@@ -110,7 +110,7 @@ export default function CatalogPage() {
             <div style={{ marginTop: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                 <h2 style={{ fontSize: '1.4rem' }}>{detail.name}</h2>
-                <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', color: 'var(--gray-300)', fontSize: '1.2rem', cursor: 'pointer', padding: 4 }}>✕</button>
+                <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', color: 'var(--gray-300)', cursor: 'pointer', padding: 4, display: 'flex' }}><X size={20} /></button>
               </div>
               <span className="badge badge-gray" style={{ marginBottom: 12 }}>{detail.category}</span>
               <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: 16 }}>{detail.description}</p>

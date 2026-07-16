@@ -1,9 +1,10 @@
+import { ShoppingBag, Package, Gift } from 'lucide-react';
 import { TIPOS_EMPAQUE } from '../data/mockData';
 
 export const PACKAGING_TYPES = [
-  { key: 'fundas', label: 'Fundas de papel', emoji: '🛍️', description: 'Ligero y práctico' },
-  { key: 'desechables', label: 'Desechable / plástico', emoji: '📦', description: 'Más rígido y protegido' },
-  { key: 'canastos', label: 'Canastos', emoji: '🎁', description: 'Presentación premium' },
+  { key: 'fundas', label: 'Fundas de papel', icon: ShoppingBag, description: 'Ligero y práctico' },
+  { key: 'desechables', label: 'Desechable / plástico', icon: Package, description: 'Más rígido y protegido' },
+  { key: 'canastos', label: 'Canastos', icon: Gift, description: 'Presentación premium' },
 ];
 
 export const ORDER_STEPS = [

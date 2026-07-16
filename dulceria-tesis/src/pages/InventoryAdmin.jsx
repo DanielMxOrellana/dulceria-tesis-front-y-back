@@ -112,12 +112,12 @@ export default function InventoryAdmin() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
         {[
-          { label: 'Sin stock', value: outOfStock.length, bg: '#fdecea', color: 'var(--danger)', icon: '🚫' },
-          { label: 'Stock bajo', value: lowStock.length, bg: '#fef8e7', color: '#c17d00', icon: '⚠️' },
-          { label: 'Stock ok', value: ok.length, bg: '#e8f8f0', color: 'var(--success)', icon: '✅' },
+          { label: 'Sin stock', value: outOfStock.length, bg: '#fdecea', color: 'var(--danger)', icon: XCircle },
+          { label: 'Stock bajo', value: lowStock.length, bg: '#fef8e7', color: '#c17d00', icon: AlertTriangle },
+          { label: 'Stock ok', value: ok.length, bg: '#e8f8f0', color: 'var(--success)', icon: CheckCircle },
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, borderRadius: 'var(--radius-lg)', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <span style={{ fontSize: '2rem' }}>{s.icon}</span>
+            <s.icon size={28} color={s.color} />
             <div>
               <p style={{ fontSize: '1.6rem', fontFamily: 'var(--font-display)', fontWeight: 700, color: s.color }}>{s.value}</p>
               <p style={{ fontSize: '0.83rem', color: s.color, opacity: 0.8 }}>{s.label}</p>

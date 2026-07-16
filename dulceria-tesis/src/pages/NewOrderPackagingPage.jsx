@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { ORDER_STEPS, PACKAGING_TYPES, getPackagingsForType, getSelectedPackaging } from '../utils/orderFlow';
 
 export default function NewOrderPackagingPage() {
@@ -88,10 +88,10 @@ export default function NewOrderPackagingPage() {
                   >
                     {isActive && (
                       <span style={{ position: 'absolute', top: 8, right: 10, background: 'var(--pink-500)', color: 'white', borderRadius: 999, width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
-                        ✓
+                        <Check size={13} />
                       </span>
                     )}
-                    <div style={{ fontSize: '1.2rem', marginBottom: 8 }}>{type.emoji}</div>
+                    <div style={{ marginBottom: 8, color: 'var(--pink-500)' }}><type.icon size={22} /></div>
                     <div style={{ fontWeight: 700, marginBottom: 3 }}>{type.label}</div>
                     <div style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>{type.description}</div>
                   </button>
@@ -130,12 +130,12 @@ export default function NewOrderPackagingPage() {
                 >
                   {isActive && (
                     <span style={{ position: 'absolute', top: 10, right: 12, background: 'var(--pink-500)', color: 'white', borderRadius: 999, width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
-                      ✓
+                      <Check size={13} />
                     </span>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontWeight: 700, marginBottom: 3 }}>{option.emoji} {option.nombre}</div>
+                      <div style={{ fontWeight: 700, marginBottom: 3 }}>{option.nombre}</div>
                       <div style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>{option.descripcion}</div>
                     </div>
                     <span style={{ fontWeight: 700, color: 'var(--pink-500)', whiteSpace: 'nowrap' }}>${option.precio.toFixed(2)}</span>
@@ -157,7 +157,7 @@ export default function NewOrderPackagingPage() {
             <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '14px 16px', color: 'var(--gray-500)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
               <div>
                 <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Empaque seleccionado</p>
-                <p style={{ fontWeight: 700, color: 'var(--gray-700)' }}>{selectedPackaging.emoji} {selectedPackaging.nombre}</p>
+                <p style={{ fontWeight: 700, color: 'var(--gray-700)' }}>{selectedPackaging.nombre}</p>
               </div>
               <div>
                 <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Límite disponible</p>

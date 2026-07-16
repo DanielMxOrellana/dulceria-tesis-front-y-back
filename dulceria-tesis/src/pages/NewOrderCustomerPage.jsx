@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { ArrowLeft, CheckCircle, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, CheckCircle, ShoppingCart, Truck, Store } from 'lucide-react';
 import { ORDER_STEPS, getSelectedPackaging } from '../utils/orderFlow';
 
 export default function NewOrderCustomerPage() {
@@ -23,6 +23,9 @@ export default function NewOrderCustomerPage() {
   const remaining = Math.max(0, packagingTotal - cartTotal);
   const grandTotal = packagingTotal;
 
+  const deliveryType = orderDraft.customer.deliveryType === 'retiro' ? 'retiro' : 'domicilio';
+  const isPickup = deliveryType === 'retiro';
+
   const confirm = async () => {
     const customer = orderDraft.customer || {};
     const trimmedName = customer.name?.trim();
@@ -30,6 +33,7 @@ export default function NewOrderCustomerPage() {
     const trimmedAddress = customer.address?.trim();
     const trimmedCedula = customer.cedula?.trim();
     const trimmedCity = customer.city?.trim() || 'Quito';
+    const trimmedReference = customer.reference?.trim();
 
     if (!cart.length) {
       setError('Agrega productos antes de confirmar.');
@@ -41,8 +45,13 @@ export default function NewOrderCustomerPage() {
       return;
     }
 
-    if (!trimmedName || !trimmedPhone || !trimmedAddress || !trimmedCedula || !trimmedCity) {
+    if (!trimmedName || !trimmedPhone || !trimmedCedula) {
       setError('Por favor completa todos los campos obligatorios.');
+      return;
+    }
+
+    if (!isPickup && (!trimmedAddress || !trimmedCity || !trimmedReference)) {
+      setError('Por favor completa Ciudad, Dirección y Referencia extra para la entrega a domicilio.');
       return;
     }
 
@@ -67,9 +76,10 @@ export default function NewOrderCustomerPage() {
         name: trimmedName,
         phone: trimmedPhone,
         address: trimmedAddress,
-        reference: customer.reference?.trim() || '',
+        reference: trimmedReference || '',
         cedula: trimmedCedula,
         city: trimmedCity,
+        deliveryType,
       },
     });
 
@@ -84,13 +94,15 @@ export default function NewOrderCustomerPage() {
   if (success) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' }}>
-        <div style={{ fontSize: '4rem', marginBottom: 16 }}>🎉</div>
-        <div style={{ color: 'var(--success)', marginBottom: 12 }}><CheckCircle size={40} /></div>
+        <div style={{ color: 'var(--success)', marginBottom: 12 }}><CheckCircle size={48} /></div>
         <h2 style={{ fontSize: '1.6rem', marginBottom: 8 }}>¡Pedido confirmado!</h2>
         <p style={{ color: 'var(--gray-400)', marginBottom: 6 }}>Tu pedido fue registrado exitosamente</p>
         {success.packaging && (
-          <p style={{ color: 'var(--gray-500)', marginBottom: 6 }}>Empaque: {success.packaging.emoji} {success.packaging.nombre}</p>
+          <p style={{ color: 'var(--gray-500)', marginBottom: 6 }}>Empaque: {success.packaging.nombre}</p>
         )}
+        <p style={{ color: 'var(--gray-500)', marginBottom: 6 }}>
+          {success.customer?.deliveryType === 'retiro' ? 'Retiro en el local' : 'Entrega a domicilio'}
+        </p>
         <p style={{ color: 'var(--pink-500)', fontWeight: 700, fontSize: '1.1rem', marginBottom: 28 }}>ID: {success.id}</p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
           <Link to="/mis-pedidos" className="btn btn-primary">Ver mis pedidos</Link>
@@ -129,21 +141,65 @@ export default function NewOrderCustomerPage() {
             <input value={orderDraft.customer.phone} onChange={e => updateOrderDraft({ customer: { phone: e.target.value } })} placeholder="0987654321" maxLength={10} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div className="form-group">
-              <label>Ciudad</label>
-              <input value={orderDraft.customer.city} onChange={e => updateOrderDraft({ customer: { city: e.target.value } })} placeholder="Quito" />
-            </div>
-            <div className="form-group">
-              <label>Dirección</label>
-              <input value={orderDraft.customer.address} onChange={e => updateOrderDraft({ customer: { address: e.target.value } })} placeholder="Calle y N°" />
+          <div className="form-group">
+            <label>Tipo de entrega</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => updateOrderDraft({ customer: { deliveryType: 'domicilio' } })}
+                aria-pressed={!isPickup}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '12px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
+                  border: `1.5px solid ${!isPickup ? 'var(--pink-400)' : 'var(--gray-200)'}`,
+                  background: !isPickup ? 'var(--pink-50)' : 'white',
+                  fontWeight: 600, color: !isPickup ? 'var(--pink-600)' : 'var(--gray-500)',
+                }}
+              >
+                <Truck size={16} /> A domicilio
+              </button>
+              <button
+                type="button"
+                onClick={() => updateOrderDraft({ customer: { deliveryType: 'retiro' } })}
+                aria-pressed={isPickup}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '12px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
+                  border: `1.5px solid ${isPickup ? 'var(--pink-400)' : 'var(--gray-200)'}`,
+                  background: isPickup ? 'var(--pink-50)' : 'white',
+                  fontWeight: 600, color: isPickup ? 'var(--pink-600)' : 'var(--gray-500)',
+                }}
+              >
+                <Store size={16} /> Retiro en el local
+              </button>
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Referencia extra</label>
-            <input value={orderDraft.customer.reference} onChange={e => updateOrderDraft({ customer: { reference: e.target.value } })} placeholder="Piso, casa color, horario, etc." />
-          </div>
+          {!isPickup && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="form-group">
+                  <label>Ciudad</label>
+                  <input value={orderDraft.customer.city} onChange={e => updateOrderDraft({ customer: { city: e.target.value } })} placeholder="Quito" />
+                </div>
+                <div className="form-group">
+                  <label>Dirección</label>
+                  <input value={orderDraft.customer.address} onChange={e => updateOrderDraft({ customer: { address: e.target.value } })} placeholder="Calle y N°" />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Referencia extra</label>
+                <input value={orderDraft.customer.reference} onChange={e => updateOrderDraft({ customer: { reference: e.target.value } })} placeholder="Piso, casa color, horario, etc." />
+              </div>
+            </>
+          )}
+
+          {isPickup && (
+            <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginBottom: 18, color: 'var(--gray-500)', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Store size={16} /> Retirarás tu pedido directamente en el local. No necesitas dar dirección de entrega.
+            </div>
+          )}
 
           <div className="form-group" style={{ marginTop: 18 }}>
             <label>Notas del pedido</label>
@@ -182,7 +238,11 @@ export default function NewOrderCustomerPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
             <span>Empaque · límite disponible</span>
-            <span>{selectedPackaging ? `${selectedPackaging.emoji} ${selectedPackaging.nombre} · $${selectedPackaging.precio.toFixed(2)}` : 'Sin empaque'}</span>
+            <span>{selectedPackaging ? `${selectedPackaging.nombre} · $${selectedPackaging.precio.toFixed(2)}` : 'Sin empaque'}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
+            <span>Tipo de entrega</span>
+            <span>{isPickup ? 'Retiro en el local' : 'A domicilio'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
             <span>Saldo restante</span>

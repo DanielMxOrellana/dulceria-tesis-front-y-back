@@ -153,6 +153,10 @@ async function ensureOrdersColumns() {
       conn,
       `ALTER TABLE ${schema}.orders ADD COLUMN IF NOT EXISTS user_id UUID`
     );
+    await query(
+      conn,
+      `ALTER TABLE ${schema}.orders ADD COLUMN IF NOT EXISTS rejection_reason TEXT`
+    );
   });
 }
 
@@ -168,7 +172,7 @@ async function ensureUserProfilesTable() {
           email VARCHAR(255) NOT NULL,
           full_name VARCHAR(120),
           phone VARCHAR(30),
-          role VARCHAR(20) DEFAULT 'client',
+          role VARCHAR(20) DEFAULT 'cliente',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -283,7 +287,7 @@ async function runMigrations() {
     await query(conn, `CREATE INDEX IF NOT EXISTS idx_inventory_movements_requested_at ON ${schema}.inventory_movements(requested_at)`);
 
     // User Profiles migrations
-    await query(conn, `ALTER TABLE ${schema}.user_profiles ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'client'`);
+    await query(conn, `ALTER TABLE ${schema}.user_profiles ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'cliente'`);
     await query(conn, `ALTER TABLE ${schema}.user_profiles ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'activo'`);
   });
 }

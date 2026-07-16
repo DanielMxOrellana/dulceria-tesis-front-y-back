@@ -85,7 +85,8 @@ export const api = {
           address: o.customerAddress,
           city: o.customerCity,
           cedula: o.customerCedula,
-          reference: o.customerReference
+          reference: o.customerReference,
+          deliveryType: o.deliveryType || 'domicilio'
         },
         packaging: {
           type: o.containerType,
@@ -99,7 +100,8 @@ export const api = {
           price: Number(item.unitPrice || 0),
           subtotal: Number(item.subtotal || 0)
         })),
-        notes: o.notes
+        notes: o.notes,
+        rejectionReason: o.rejectionReason || ''
       }));
     }
     return res;

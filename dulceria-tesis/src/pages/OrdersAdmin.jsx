@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ClipboardList, CheckCircle2, XCircle, Truck } from 'lucide-react';
+import { ClipboardList, CheckCircle2, XCircle, Truck, X, ChefHat, AlertTriangle } from 'lucide-react';
 import { STATUS_COLORS } from '../data/mockData';
 
 export default function OrdersAdmin() {
@@ -8,6 +8,8 @@ export default function OrdersAdmin() {
   const [filter, setFilter] = useState('todos');
   const [selected, setSelected] = useState(null);
   const [rejectConfirm, setRejectConfirm] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectError, setRejectError] = useState('');
 
   const filtered = filter === 'todos' ? orders : orders.filter(o => o.status === filter);
 
@@ -17,10 +19,20 @@ export default function OrdersAdmin() {
 
   const advanceOrder = (order, status) => updateOrderStatus(order.id, status);
 
-  const confirmReject = () => {
+  const confirmReject = async () => {
     if (!rejectConfirm) return;
-    updateOrderStatus(rejectConfirm.id, 'rechazado');
+    if (!rejectReason.trim()) {
+      setRejectError('El motivo del rechazo es obligatorio.');
+      return;
+    }
+    const result = await updateOrderStatus(rejectConfirm.id, 'rechazado', rejectReason.trim());
+    if (result?.error) {
+      setRejectError(result.error);
+      return;
+    }
     setRejectConfirm(null);
+    setRejectReason('');
+    setRejectError('');
   };
 
   return (
@@ -73,12 +85,18 @@ export default function OrdersAdmin() {
                 <h3 style={{ fontSize: '1.1rem' }}>{liveSelected.id}</h3>
                 <p style={{ fontSize: '0.83rem', color: 'var(--gray-400)' }}>{liveSelected.date}</p>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setSelected(null)}>✕</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setSelected(null)}><X size={15} /></button>
             </div>
 
             <div style={{ marginBottom: 18 }}>
               <span className={`badge ${STATUS_COLORS[liveSelected.status] || 'badge-gray'}`}>{liveSelected.status}</span>
             </div>
+
+            {liveSelected.status === 'rechazado' && liveSelected.rejectionReason && (
+              <div style={{ background: '#fdecea', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18, color: 'var(--danger)', fontSize: '0.85rem' }}>
+                <strong>Motivo del rechazo:</strong> {liveSelected.rejectionReason}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
               {liveSelected.status === 'pendiente' && (
@@ -86,19 +104,19 @@ export default function OrdersAdmin() {
                   <button className="btn btn-success btn-sm" onClick={() => advanceOrder(liveSelected, 'aceptado')}>
                     <CheckCircle2 size={14} /> Aceptar
                   </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => setRejectConfirm(liveSelected)}>
+                  <button className="btn btn-danger btn-sm" onClick={() => { setRejectConfirm(liveSelected); setRejectReason(''); setRejectError(''); }}>
                     <XCircle size={14} /> Rechazar
                   </button>
                 </>
               )}
               {liveSelected.status === 'aceptado' && (
                 <button className="btn btn-primary btn-sm" onClick={() => advanceOrder(liveSelected, 'en preparacion')}>
-                  🍳 Preparar
+                  <ChefHat size={14} /> Preparar
                 </button>
               )}
               {liveSelected.status === 'en preparacion' && (
                 <button className="btn btn-primary btn-sm" onClick={() => advanceOrder(liveSelected, 'listo')}>
-                  ✅ Listo
+                  <CheckCircle2 size={14} /> Listo
                 </button>
               )}
               {liveSelected.status === 'listo' && (
@@ -117,6 +135,7 @@ export default function OrdersAdmin() {
               <div style={{ background: '#fef8e7', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18, color: '#7a5a00' }}>
                 <p style={{ fontSize: '0.8rem', color: '#9b7d34', marginBottom: 2 }}>Datos personales</p>
                 <p style={{ fontWeight: 600, marginBottom: 4 }}>{liveSelected.customer.name}</p>
+                <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>{liveSelected.customer.deliveryType === 'retiro' ? 'Retiro en el local' : 'Entrega a domicilio'}</p>
                 {liveSelected.customer.phone && <p style={{ fontSize: '0.85rem' }}>Teléfono: {liveSelected.customer.phone}</p>}
                 {liveSelected.customer.address && <p style={{ fontSize: '0.85rem' }}>Dirección: {liveSelected.customer.address}</p>}
                 {liveSelected.customer.reference && <p style={{ fontSize: '0.85rem' }}>Referencia: {liveSelected.customer.reference}</p>}
@@ -126,7 +145,7 @@ export default function OrdersAdmin() {
             {liveSelected.packaging && (
               <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18 }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginBottom: 2 }}>Empaque</p>
-                <p style={{ fontWeight: 600 }}>{liveSelected.packaging.emoji} {liveSelected.packaging.nombre}</p>
+                <p style={{ fontWeight: 600 }}>{liveSelected.packaging.nombre}</p>
                 <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>Incluye hasta ${liveSelected.packaging.precio.toFixed(2)} en dulces</p>
               </div>
             )}
@@ -144,7 +163,7 @@ export default function OrdersAdmin() {
 
             {liveSelected.notes && (
               <div style={{ background: '#fef8e7', borderRadius: 'var(--radius-sm)', padding: '10px 14px', margin: '14px 0', fontSize: '0.85rem', color: '#7a5a00' }}>
-                📝 {liveSelected.notes}
+                <strong>Nota:</strong> {liveSelected.notes}
               </div>
             )}
 
@@ -159,10 +178,21 @@ export default function OrdersAdmin() {
       {/* Reject Confirm */}
       {rejectConfirm && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 380, textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>⚠️</div>
+          <div className="modal" style={{ maxWidth: 420, textAlign: 'center' }}>
+            <div style={{ color: 'var(--danger)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}><AlertTriangle size={40} /></div>
             <h2 style={{ fontSize: '1.2rem', marginBottom: 8 }}>¿Rechazar pedido?</h2>
-            <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem', marginBottom: 24 }}>Se repondrá el stock reservado de este pedido.</p>
+            <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem', marginBottom: 16 }}>Se repondrá el stock reservado de este pedido. El cliente verá el motivo que escribas aquí.</p>
+            <div className="form-group" style={{ textAlign: 'left', marginBottom: rejectError ? 8 : 20 }}>
+              <label>Motivo del rechazo</label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => { setRejectReason(e.target.value); setRejectError(''); }}
+                placeholder="Ej. Producto sin stock, datos de contacto incorrectos, pedido duplicado..."
+                autoFocus
+              />
+            </div>
+            {rejectError && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: 16, textAlign: 'left' }}>{rejectError}</p>}
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button className="btn btn-secondary" onClick={() => setRejectConfirm(null)}>Cancelar</button>
               <button className="btn btn-danger" onClick={confirmReject}>Rechazar</button>

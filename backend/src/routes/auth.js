@@ -36,7 +36,7 @@ router.post("/register", async (req, res) => {
   const password = String(req.body?.password || "");
   const fullName = String(req.body?.fullName || req.body?.name || "").trim();
   const phone = String(req.body?.phone || "").trim();
-  const role = String(req.body?.role || "client").trim();
+  const role = String(req.body?.role || "cliente").trim();
   const email_confirm = req.body?.email_confirm === true;
 
   if (!isValidEmail(email)) {
@@ -239,7 +239,7 @@ router.post("/login", async (req, res) => {
         id: userId,
         email: data.user.email,
         name: data.user.user_metadata?.full_name || "Usuario",
-        role: "client",
+        role: "cliente",
         status: "activo",
       };
     }

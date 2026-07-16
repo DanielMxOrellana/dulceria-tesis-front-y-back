@@ -10,6 +10,29 @@ const AppContext = createContext();
 
 const isVendorRole = (role) => ['vendor', 'vendedor', 'seller'].includes(String(role || '').trim().toLowerCase());
 
+const SEEN_REJECTIONS_KEY = 'dulceria_seen_rejections';
+
+function loadSeenRejectionIds(userId) {
+  if (!userId) return [];
+  try {
+    const map = JSON.parse(localStorage.getItem(SEEN_REJECTIONS_KEY) || '{}');
+    return Array.isArray(map[userId]) ? map[userId] : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveSeenRejectionIds(userId, ids) {
+  if (!userId) return;
+  try {
+    const map = JSON.parse(localStorage.getItem(SEEN_REJECTIONS_KEY) || '{}');
+    map[userId] = ids;
+    localStorage.setItem(SEEN_REJECTIONS_KEY, JSON.stringify(map));
+  } catch (e) {
+    // localStorage no disponible, se ignora
+  }
+}
+
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -27,6 +50,13 @@ export function AppProvider({ children }) {
       localStorage.removeItem('dulceria_session');
     }
   }, [currentUser]);
+
+  const [seenRejectionIds, setSeenRejectionIds] = useState(() => loadSeenRejectionIds(currentUser?.id));
+
+  useEffect(() => {
+    setSeenRejectionIds(loadSeenRejectionIds(currentUser?.id));
+  }, [currentUser?.id]);
+
   const [products, setProducts] = useState(PRODUCTS_INITIAL);
   const [orders, setOrders] = useState(ORDERS_INITIAL);
   const [users, setUsers] = useState([]);
@@ -44,6 +74,7 @@ export function AppProvider({ children }) {
       reference: '',
       cedula: '',
       city: 'Quito',
+      deliveryType: 'domicilio',
     },
     notes: '',
   });
@@ -172,7 +203,7 @@ export function AppProvider({ children }) {
 
   const register = async (name, email, password) => {
     try {
-      const response = await api.createUser({ name, email, password });
+      const response = await api.createUser({ name, email, password, email_confirm: true });
       if (response && (response.ok || response.user)) {
         if (response.needsVerification) {
           return { success: true, needsVerification: true };
@@ -422,7 +453,7 @@ export function AppProvider({ children }) {
     packagingType: 'fundas',
     preferredPackagingType: 'fundas',
     packagingId: 'funda_s',
-    customer: { name: '', phone: '', address: '', reference: '', cedula: '', city: 'Quito' },
+    customer: { name: '', phone: '', address: '', reference: '', cedula: '', city: 'Quito', deliveryType: 'domicilio' },
     notes: '',
   });
 
@@ -502,9 +533,12 @@ export function AppProvider({ children }) {
 
     const clientName = customer.name?.trim() || currentUser.name;
     const clientPhone = customer.phone?.trim() || '';
-    const clientAddress = customer.address?.trim() || '';
     const clientCedula = customer.cedula?.trim() || '';
-    const clientCity = customer.city?.trim() || 'Quito';
+    const deliveryType = customer.deliveryType === 'retiro' ? 'retiro' : 'domicilio';
+    const isPickup = deliveryType === 'retiro';
+    const clientAddress = isPickup ? '' : customer.address?.trim() || '';
+    const clientCity = isPickup ? '' : customer.city?.trim() || 'Quito';
+    const clientReference = isPickup ? '' : customer.reference?.trim() || '';
 
     // Map to backend schema
     const backendOrder = {
@@ -513,8 +547,8 @@ export function AppProvider({ children }) {
       customerPhone: clientPhone,
       customerAddress: clientAddress,
       customerCity: clientCity,
-      customerReference: customer.reference?.trim() || '',
-      deliveryType: 'domicilio',
+      customerReference: clientReference,
+      deliveryType,
       containerType: packaging?.type || 'fundas',
       containerName: packaging?.nombre || 'Básica',
       containerPrice: packagingTotal,
@@ -540,7 +574,14 @@ export function AppProvider({ children }) {
           dbId: realOrder.id,
           clientId: currentUser?.id,
           clientName,
-          customer: { ...customer, name: clientName },
+          customer: {
+            ...customer,
+            name: clientName,
+            deliveryType,
+            address: clientAddress,
+            city: clientCity,
+            reference: clientReference,
+          },
           packaging,
           items: cart.map(i => ({
             productId: i.productId,
@@ -582,7 +623,7 @@ export function AppProvider({ children }) {
     }
   };
 
-  const updateOrderStatus = async (orderId, status) => {
+  const updateOrderStatus = async (orderId, status, rejectionReason = '') => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return { error: 'Pedido no encontrado' };
 
@@ -590,13 +631,19 @@ export function AppProvider({ children }) {
     const normalizedPrevious = normalizeOrderStatus(order.status);
     const dbId = resolveOrderDbId(order);
     const previousStatus = order.status;
+    const previousRejectionReason = order.rejectionReason;
+    const trimmedReason = rejectionReason?.trim() || '';
+
+    if (normalizedStatus === 'rechazado' && !trimmedReason) {
+      return { error: 'El motivo del rechazo es obligatorio.' };
+    }
 
     const shouldRestoreStock =
       ['rechazado', 'cancelado'].includes(normalizedStatus) &&
       !['rechazado', 'cancelado', 'entregado'].includes(normalizedPrevious);
 
     setOrders(prev => prev.map(o => (
-      o.id === orderId ? { ...o, status: normalizedStatus } : o
+      o.id === orderId ? { ...o, status: normalizedStatus, rejectionReason: normalizedStatus === 'rechazado' ? trimmedReason : o.rejectionReason } : o
     )));
 
     if (!hasApi || !dbId) {
@@ -607,7 +654,10 @@ export function AppProvider({ children }) {
     }
 
     try {
-      await api.updateOrder(dbId, { status: normalizedStatus });
+      await api.updateOrder(dbId, {
+        status: normalizedStatus,
+        ...(normalizedStatus === 'rechazado' ? { rejectionReason: trimmedReason } : {}),
+      });
       setApiError('');
 
       if (shouldRestoreStock) {
@@ -617,7 +667,7 @@ export function AppProvider({ children }) {
       return { success: true };
     } catch (error) {
       setOrders(prev => prev.map(o => (
-        o.id === orderId ? { ...o, status: previousStatus } : o
+        o.id === orderId ? { ...o, status: previousStatus, rejectionReason: previousRejectionReason } : o
       )));
       setApiError(error.message || 'No se pudo sincronizar con el backend. Revisa que la API este activa.');
       return { error: error.message || 'No se pudo actualizar el pedido.' };
@@ -637,6 +687,16 @@ export function AppProvider({ children }) {
   const lowStockProducts = products.filter(p => p.stock > 0 && p.stock <= p.minStock);
   const outOfStockProducts = products.filter(p => p.stock === 0);
 
+  const myRejectedOrders = orders.filter(o => o.clientId === currentUser?.id && o.status === 'rechazado');
+  const unseenRejectedOrders = myRejectedOrders.filter(o => !seenRejectionIds.includes(o.id));
+
+  const markRejectionsSeen = () => {
+    if (!currentUser?.id || myRejectedOrders.length === 0) return;
+    const ids = Array.from(new Set([...seenRejectionIds, ...myRejectedOrders.map(o => o.id)]));
+    setSeenRejectionIds(ids);
+    saveSeenRejectionIds(currentUser.id, ids);
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser, login, logout, register, createUser, resetPassword, updatePassword,
@@ -644,6 +704,7 @@ export function AppProvider({ children }) {
       products, addProduct, updateProduct, deleteProduct, updateStock,
       inventoryMovements, fetchInventoryMovements, approveInventoryMovement, rejectInventoryMovement,
       orders, createOrder, updateOrderStatus,
+      unseenRejectedOrders, markRejectionsSeen,
       users, toggleUserBlock,
       cart, addToCart, removeFromCart, clearCart, cartTotal, cartCount,
       orderDraft, updateOrderDraft, resetOrderDraft,

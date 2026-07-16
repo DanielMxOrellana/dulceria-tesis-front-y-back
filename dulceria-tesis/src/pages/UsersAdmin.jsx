@@ -20,7 +20,7 @@ export default function UsersAdmin() {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'cliente' });
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
@@ -33,7 +33,7 @@ export default function UsersAdmin() {
       return;
     }
 
-    const result = createUser(form.name, form.email, form.password, form.role);
+    const result = await createUser(form.name, form.email, form.password, form.role);
 
     if (result.error) {
       setError(result.error);

@@ -34,7 +34,7 @@ const clientNav = [
 ];
 
 export default function Layout({ children }) {
-  const { currentUser, logout, cartCount, lowStockProducts, products } = useApp();
+  const { currentUser, logout, cartCount, lowStockProducts, products, unseenRejectedOrders } = useApp();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -60,7 +60,7 @@ export default function Layout({ children }) {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
         <div className="sidebar-brand">
-          <span className="brand-icon">🍬</span>
+          <span className="brand-icon"></span>
           <div>
             <h2>Dulcería El Suspiro</h2>
             <span></span>
@@ -113,6 +113,12 @@ export default function Layout({ children }) {
                 <Bell size={20} />
                 <span className="notif-dot">{lowStockProducts.length}</span>
               </div>
+            )}
+            {!isAdmin && !isVendor && unseenRejectedOrders.length > 0 && (
+              <Link to="/mis-pedidos" className="notification-bell" title="Tienes pedidos rechazados">
+                <Bell size={20} />
+                <span className="notif-dot">{unseenRejectedOrders.length}</span>
+              </Link>
             )}
             {!isAdmin && !isVendor && (
               <Link to="/nuevo-pedido/empaque" className="cart-icon" title="Nuevo pedido">

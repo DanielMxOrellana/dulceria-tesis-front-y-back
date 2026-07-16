@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Pencil, Trash2, X, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Package, AlertTriangle } from 'lucide-react';
 import { CATEGORIES } from '../data/mockData';
 import { api } from '../services/api';
 
@@ -264,7 +264,7 @@ export default function ProductsAdmin() {
       {confirmDelete && (
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: 380, textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>⚠️</div>
+            <div style={{ color: 'var(--danger)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}><AlertTriangle size={40} /></div>
             <h2 style={{ fontSize: '1.2rem', marginBottom: 8 }}>¿Desactivar producto?</h2>
             <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem', marginBottom: 24 }}>El producto se ocultará del catálogo pero se conservará en la base de datos.</p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, X } from 'lucide-react';
 
 const STATUS_LABELS = {
   pendiente: 'Pendiente',
@@ -118,7 +118,7 @@ export default function OrdersPage() {
                 <h3 style={{ fontSize: '1.1rem' }}>{selectedOrder.id}</h3>
                 <p style={{ fontSize: '0.83rem', color: 'var(--gray-400)' }}>{selectedOrder.date}</p>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setSelectedOrderId(null)}>✕</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setSelectedOrderId(null)}><X size={15} /></button>
             </div>
 
             <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18 }}>
@@ -129,6 +129,7 @@ export default function OrdersPage() {
             <div style={{ background: '#fef8e7', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18, color: '#7a5a00' }}>
               <p style={{ fontSize: '0.8rem', color: '#9b7d34', marginBottom: 2 }}>Datos personales</p>
               <p style={{ fontWeight: 600, marginBottom: 4 }}>{selectedOrder.customer?.name || selectedOrder.clientName}</p>
+              <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>{selectedOrder.customer?.deliveryType === 'retiro' ? 'Retiro en el local' : 'Entrega a domicilio'}</p>
               {selectedOrder.customer?.phone && <p style={{ fontSize: '0.85rem' }}>Teléfono: {selectedOrder.customer.phone}</p>}
               {selectedOrder.customer?.address && <p style={{ fontSize: '0.85rem' }}>Dirección: {selectedOrder.customer.address}</p>}
               {selectedOrder.customer?.reference && <p style={{ fontSize: '0.85rem' }}>Referencia: {selectedOrder.customer.reference}</p>}
@@ -137,7 +138,7 @@ export default function OrdersPage() {
             {selectedOrder.packaging && (
               <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18 }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginBottom: 2 }}>Empaque</p>
-                <p style={{ fontWeight: 600 }}>{selectedOrder.packaging.emoji} {selectedOrder.packaging.nombre}</p>
+                <p style={{ fontWeight: 600 }}>{selectedOrder.packaging.nombre}</p>
                 <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>Incluye hasta ${selectedOrder.packaging.precio.toFixed(2)} en dulces</p>
               </div>
             )}
@@ -155,7 +156,7 @@ export default function OrdersPage() {
 
             {selectedOrder.notes && (
               <div style={{ background: '#fef8e7', borderRadius: 'var(--radius-sm)', padding: '10px 14px', margin: '14px 0', fontSize: '0.85rem', color: '#7a5a00' }}>
-                📝 {selectedOrder.notes}
+                <strong>Nota:</strong> {selectedOrder.notes}
               </div>
             )}
 

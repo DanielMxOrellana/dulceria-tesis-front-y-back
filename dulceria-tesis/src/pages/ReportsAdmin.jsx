@@ -1,6 +1,9 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { Package, DollarSign, ClipboardList, CheckCircle2 } from 'lucide-react';
+
+const PLACEHOLDER_IMG = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='100%25' height='100%25' fill='%23f3eae9'/%3E%3C/svg%3E";
 
 const COLORS = ['#2E6B7A', '#4A8FA0', '#1E4F5C', '#8DBCC7', '#D6E8EC', '#B8D6DD'];
 
@@ -47,12 +50,12 @@ export default function ReportsAdmin() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
         {[
-          { label: 'Ingresos totales', value: `$${totalRevenue.toFixed(2)}`, icon: '💰' },
-          { label: 'Total pedidos', value: totalOrders, icon: '📦' },
-          { label: 'Pedidos entregados', value: deliveredOrders, icon: '✅' },
+          { label: 'Ingresos totales', value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign },
+          { label: 'Total pedidos', value: totalOrders, icon: ClipboardList },
+          { label: 'Pedidos entregados', value: deliveredOrders, icon: CheckCircle2 },
         ].map(s => (
           <div key={s.label} className="stat-card">
-            <div className="stat-icon" style={{ background: 'var(--pink-100)', fontSize: '1.5rem', width: 50, height: 50 }}>{s.icon}</div>
+            <div className="stat-icon" style={{ background: 'var(--pink-100)', color: 'var(--pink-600)', width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><s.icon size={22} /></div>
             <div className="stat-info">
               <h3>{s.value}</h3>
               <p>{s.label}</p>
@@ -100,17 +103,30 @@ export default function ReportsAdmin() {
         {topProducts.length === 0 ? (
           <div className="empty-state"><p>Sin ventas registradas aún</p></div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
             {topProducts.map((p, i) => {
               const product = products.find(pr => pr.name === p.name);
+              const image = product?.image;
+              const src = image && (image.startsWith('http') || image.startsWith('data:') ? image : encodeURI(image));
               return (
                 <div key={p.name} style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: '2rem' }}>{product?.image || ''}</span>
-                  <div>
-                    <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</p>
-                    <p style={{ color: 'var(--pink-500)', fontWeight: 700 }}>{p.qty} vendidos</p>
+                  <div style={{ width: 48, height: 48, borderRadius: 8, overflow: 'hidden', flexShrink: 0, background: 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {src ? (
+                      <img
+                        src={src}
+                        alt={p.name}
+                        onError={(e) => { e.currentTarget.src = PLACEHOLDER_IMG; }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    ) : (
+                      <Package size={20} color="var(--gray-400)" />
+                    )}
                   </div>
-                  <span style={{ marginLeft: 'auto', width: 26, height: 26, background: i < 3 ? 'var(--pink-500)' : 'var(--gray-200)', color: i < 3 ? 'white' : 'var(--gray-400)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>#{i+1}</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={{ fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
+                    <p style={{ color: 'var(--pink-500)', fontWeight: 700, fontSize: '0.85rem' }}>{p.qty} vendidos</p>
+                  </div>
+                  <span style={{ marginLeft: 'auto', flexShrink: 0, width: 26, height: 26, background: i < 3 ? 'var(--pink-500)' : 'var(--gray-200)', color: i < 3 ? 'white' : 'var(--gray-400)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>#{i+1}</span>
                 </div>
               );
             })}
