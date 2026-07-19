@@ -100,6 +100,10 @@ export const api = {
           price: Number(item.unitPrice || 0),
           subtotal: Number(item.subtotal || 0)
         })),
+        attendedById: o.attended_by_id || o.attendedById,
+        attendedByName: o.attended_by_name || o.attendedByName,
+        dispatchedById: o.dispatched_by_id || o.dispatchedById,
+        dispatchedByName: o.dispatched_by_name || o.dispatchedByName,
         notes: o.notes,
         rejectionReason: o.rejectionReason || ''
       }));
@@ -139,6 +143,18 @@ export const api = {
   updateOrder: (id, updates) => request(`/api/orders/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify(updates),
+  }),
+  createComplaint: (orderId, complaint) => request(`/api/orders/${orderId}/complaints`, {
+    method: 'POST',
+    body: JSON.stringify(complaint)
+  }),
+  getComplaintsAll: () => request('/api/orders/complaints/all', {
+    headers: { 'x-admin-password': ADMIN_PASSWORD },
+  }),
+  resolveComplaint: (complaintId, adminResponse) => request(`/api/orders/complaints/${complaintId}/resolve`, {
+    method: 'PUT',
+    headers: { 'x-admin-password': ADMIN_PASSWORD },
+    body: JSON.stringify({ adminResponse })
   }),
   login: (credentials) => request('/api/auth/login', {
     method: 'POST',

@@ -45,6 +45,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
     deleteProduct,
     updateStock,
     updateOrderStatus,
+    complaints,
   } = useApp();
 
   const [showForm, setShowForm] = useState(false);
@@ -62,6 +63,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
   const [stockMessage, setStockMessage] = useState('');
   const [stockDrafts, setStockDrafts] = useState({});
   const [stockRequest, setStockRequest] = useState(null);
+  const [activeOrderTab, setActiveOrderTab] = useState('pendientes');
 
   const vendorProducts = useMemo(
     () => products,
@@ -111,7 +113,15 @@ export default function VendorDashboard({ section = 'dashboard' }) {
   );
   const outOfStockProducts = vendorProducts.filter((product) => product.stock === 0);
   const totalSales = deliveredVendorOrders.reduce((sum, order) => sum + order.vendorTotal, 0);
-  const pendingOrders = vendorOrders.filter((order) => order.status === 'pendiente').length;
+  const pendingOrdersList = vendorOrders.filter((order) => order.status === 'pendiente');
+  const prepOrdersList = vendorOrders.filter((order) => ['aceptado', 'en preparacion', 'listo'].includes(order.status));
+  const closedOrdersList = vendorOrders.filter((order) => ['entregado', 'rechazado', 'cancelado'].includes(order.status));
+
+  const vendorComplaintOrders = vendorOrders.filter((order) => {
+    return complaints?.some(c => c.order_id === order.id && c.status === 'open');
+  });
+
+  const pendingOrders = pendingOrdersList.length;
 
   const stats = [
     { label: 'Productos publicados', value: vendorProducts.length, icon: Package },
@@ -358,9 +368,17 @@ export default function VendorDashboard({ section = 'dashboard' }) {
   };
 
   const updateOrder = async (order, status, reason = '') => {
-    const result = await updateOrderStatus(order.id, status, reason);
+    const extraPayload = {};
+    if (status === 'en preparacion' || status === 'preparado') {
+      extraPayload.attendedById = currentUser?.id;
+      extraPayload.attendedByName = currentUser?.name;
+    } else if (status === 'entregado') {
+      extraPayload.dispatchedById = currentUser?.id;
+      extraPayload.dispatchedByName = currentUser?.name;
+    }
+    const result = await updateOrderStatus(order.id, status, reason, extraPayload);
     if (!result?.error) {
-      setSelectedOrder((current) => (current?.id === order.id ? { ...current, status } : current));
+      setSelectedOrder((current) => (current?.id === order.id ? { ...current, status, ...extraPayload } : current));
     }
     return result;
   };
@@ -559,48 +577,95 @@ export default function VendorDashboard({ section = 'dashboard' }) {
               <h2>Pedidos recibidos</h2>
               <p className="section-subtitle">Solo aparecen pedidos que contienen tus productos.</p>
             </div>
-            <div className="section-tag">{vendorOrders.length} pedidos</div>
           </div>
 
-          {vendorOrders.length === 0 ? (
-            <div className="empty-state">
-              <ClipboardList size={42} />
-              <h3>No tienes pedidos todavia</h3>
-              <p>Cuando un cliente pida tus productos, lo veras aqui.</p>
+          <div className="vendor-tabs">
+            <button
+              className={`vendor-tab ${activeOrderTab === 'pendientes' ? 'active' : ''}`}
+              onClick={() => setActiveOrderTab('pendientes')}
+            >
+              Pendientes <span className="tab-badge">{pendingOrdersList.length}</span>
+            </button>
+            <button
+              className={`vendor-tab ${activeOrderTab === 'preparacion' ? 'active' : ''}`}
+              onClick={() => setActiveOrderTab('preparacion')}
+            >
+              En Preparación <span className="tab-badge">{prepOrdersList.length}</span>
+            </button>
+            <button
+              className={`vendor-tab ${activeOrderTab === 'despachados' ? 'active' : ''}`}
+              onClick={() => setActiveOrderTab('despachados')}
+            >
+              Despachados / Cerrados <span className="tab-badge">{closedOrdersList.length}</span>
+            </button>
+            <button
+              className={`vendor-tab ${activeOrderTab === 'reclamos' ? 'active' : ''}`}
+              onClick={() => setActiveOrderTab('reclamos')}
+            >
+              Con Reclamos <span className="tab-badge" style={{ background: 'var(--danger)', color: 'white' }}>{vendorComplaintOrders.length}</span>
+            </button>
+          </div>
+
+          {[
+            { id: 'pendientes', list: pendingOrdersList, emptyMessage: 'No hay pedidos pendientes.' },
+            { id: 'preparacion', list: prepOrdersList, emptyMessage: 'No hay pedidos en preparación.' },
+            { id: 'despachados', list: closedOrdersList, emptyMessage: 'No hay pedidos entregados o cerrados.' },
+            { id: 'reclamos', list: vendorComplaintOrders, emptyMessage: 'No tienes pedidos con reclamos abiertos.' }
+          ].map((tabConfig) => activeOrderTab === tabConfig.id && (
+            <div key={tabConfig.id}>
+              {tabConfig.list.length === 0 ? (
+                <div className="empty-state" style={{ marginTop: '20px' }}>
+                  <ClipboardList size={42} />
+                  <h3>{tabConfig.emptyMessage}</h3>
+                </div>
+              ) : (
+                <div className="table-container" style={{ marginTop: '20px' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Pedido</th>
+                        <th>Cliente</th>
+                        <th>Productos</th>
+                        <th>Total pedido</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tabConfig.list.map((order) => (
+                        <tr key={order.id}>
+                          <td>
+                            <strong>{order.id}</strong>
+                            {(() => {
+                              const activeComplaint = complaints?.find(c => c.order_id === (order.dbId || order.id));
+                              if (activeComplaint && activeComplaint.status === 'open') {
+                                return (
+                                  <div style={{ marginTop: '4px' }}>
+                                    <span className="badge" style={{ backgroundColor: 'var(--danger)', color: 'white', padding: '2px 6px', fontSize: '0.65rem' }}>Reclamo abierto</span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </td>
+                          <td>
+                            <strong>{order.customer.name}</strong>
+                            <p className="text-muted">{order.customer.phone}</p>
+                          </td>
+                          <td>{order.vendorItems.length} productos</td>
+                          <td>{money(order.vendorTotal)}</td>
+                          <td><span className={`badge ${STATUS_COLORS[order.status] || 'badge-info'}`}>{order.status}</span></td>
+                          <td>{order.date}</td>
+                          <td>{renderOrderActions(order)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Pedido</th>
-                    <th>Cliente</th>
-                    <th>Productos</th>
-                    <th>Total pedido</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vendorOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td><strong>{order.id}</strong></td>
-                      <td>
-                        <strong>{order.customer.name}</strong>
-                        <p className="text-muted">{order.customer.phone}</p>
-                      </td>
-                      <td>{order.vendorItems.length} productos</td>
-                      <td>{money(order.vendorTotal)}</td>
-                      <td><span className={`badge ${STATUS_COLORS[order.status] || 'badge-info'}`}>{order.status}</span></td>
-                      <td>{order.date}</td>
-                      <td>{renderOrderActions(order)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          ))}
         </section>
       )}
 

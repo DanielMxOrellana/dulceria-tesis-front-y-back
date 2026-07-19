@@ -3,14 +3,21 @@
 const { Pool } = require("pg");
 require("dotenv").config();
 
-const pool = new Pool({
-  host: process.env.PGHOST || "localhost",
-  port: Number(process.env.PGPORT || 5432),
-  database: process.env.PGDATABASE || "dulceria",
-  user: process.env.PGUSER || "postgres",
-  password: process.env.PGPASSWORD || "postgres",
-  ssl: (process.env.PGSSLMODE || "disable") === "require" ? { rejectUnauthorized: false } : false,
-});
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    }
+    : {
+      host: process.env.PGHOST || "localhost",
+      port: Number(process.env.PGPORT || 5432),
+      database: process.env.PGDATABASE || "dulceria",
+      user: process.env.PGUSER || "postgres",
+      password: process.env.PGPASSWORD || "postgres",
+      ssl: (process.env.PGSSLMODE || "disable") === "require" ? { rejectUnauthorized: false } : false,
+    }
+);
 
 async function migrateDatabase() {
   console.log("Conectando a PostgreSQL para migracion...");
@@ -24,7 +31,14 @@ async function migrateDatabase() {
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_reference VARCHAR(250)",
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_date VARCHAR(50)",
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_type VARCHAR(20) DEFAULT 'domicilio'",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS attended_by_id UUID",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS attended_by_name VARCHAR(100)",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispatched_by_id UUID",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispatched_by_name VARCHAR(100)",
     "CREATE TABLE IF NOT EXISTS order_extras (id SERIAL PRIMARY KEY, order_id INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE, extra_name VARCHAR(120) NOT NULL, unit_price DECIMAL(10,2) NOT NULL, quantity INT NOT NULL DEFAULT 1, subtotal DECIMAL(10,2) NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS order_complaints (id SERIAL PRIMARY KEY, order_id INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE, customer_id UUID, reason VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', admin_response TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+    "ALTER TABLE order_complaints ALTER COLUMN customer_id TYPE UUID USING customer_id::text::uuid;",
+    "ALTER TABLE order_complaints ADD COLUMN IF NOT EXISTS admin_response TEXT;",
     "CREATE INDEX IF NOT EXISTS idx_orders_order_code ON orders(order_code)",
     "CREATE INDEX IF NOT EXISTS idx_orders_customer_cedula ON orders(customer_cedula)",
     "CREATE INDEX IF NOT EXISTS idx_order_extras_order_id ON order_extras(order_id)",

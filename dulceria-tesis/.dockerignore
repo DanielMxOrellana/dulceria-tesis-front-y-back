@@ -1,0 +1,5 @@
+node_modules
+build
+.git
+.npm
+package-lock.json

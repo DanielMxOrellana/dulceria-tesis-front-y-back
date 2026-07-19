@@ -60,6 +60,7 @@ export function AppProvider({ children }) {
   const [products, setProducts] = useState(PRODUCTS_INITIAL);
   const [orders, setOrders] = useState(ORDERS_INITIAL);
   const [users, setUsers] = useState([]);
+  const [complaints, setComplaints] = useState([]);
   const [inventoryMovements, setInventoryMovements] = useState([]);
   const [cart, setCart] = useState([]);
   const [apiError, setApiError] = useState('');
@@ -82,17 +83,19 @@ export function AppProvider({ children }) {
   const fetchData = async () => {
     if (!hasApi) return;
     try {
-      const [apiProducts, apiOrders, apiUsers, apiMovements] = await Promise.all([
+      const [apiProducts, apiOrders, apiUsers, apiMovements, apiComplaints] = await Promise.all([
         api.getProducts().catch(() => null),
         api.getOrders().catch(() => null),
         api.getUsers().catch(() => null),
         currentUser?.role === 'admin' ? api.getInventoryMovements().catch(() => null) : Promise.resolve(null),
+        api.getComplaintsAll().catch(() => null)
       ]);
 
       if (Array.isArray(apiProducts)) setProducts(apiProducts);
       if (Array.isArray(apiOrders)) setOrders(apiOrders);
       if (Array.isArray(apiUsers)) setUsers(apiUsers);
       if (apiMovements?.ok && Array.isArray(apiMovements.movements)) setInventoryMovements(apiMovements.movements);
+      if (apiComplaints?.ok && Array.isArray(apiComplaints.complaints)) setComplaints(apiComplaints.complaints);
       setApiError('');
     } catch (error) {
       console.error("fetchData error:", error);
@@ -623,7 +626,7 @@ export function AppProvider({ children }) {
     }
   };
 
-  const updateOrderStatus = async (orderId, status, rejectionReason = '') => {
+  const updateOrderStatus = async (orderId, status, rejectionReason = '', extraPayload = {}) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return { error: 'Pedido no encontrado' };
 
@@ -643,7 +646,7 @@ export function AppProvider({ children }) {
       !['rechazado', 'cancelado', 'entregado'].includes(normalizedPrevious);
 
     setOrders(prev => prev.map(o => (
-      o.id === orderId ? { ...o, status: normalizedStatus, rejectionReason: normalizedStatus === 'rechazado' ? trimmedReason : o.rejectionReason } : o
+      o.id === orderId ? { ...o, status: normalizedStatus, rejectionReason: normalizedStatus === 'rechazado' ? trimmedReason : o.rejectionReason, ...extraPayload } : o
     )));
 
     if (!hasApi || !dbId) {
@@ -657,6 +660,7 @@ export function AppProvider({ children }) {
       await api.updateOrder(dbId, {
         status: normalizedStatus,
         ...(normalizedStatus === 'rechazado' ? { rejectionReason: trimmedReason } : {}),
+        ...extraPayload,
       });
       setApiError('');
 
@@ -704,6 +708,7 @@ export function AppProvider({ children }) {
       products, addProduct, updateProduct, deleteProduct, updateStock,
       inventoryMovements, fetchInventoryMovements, approveInventoryMovement, rejectInventoryMovement,
       orders, createOrder, updateOrderStatus,
+      complaints, fetchComplaints: fetchData,
       unseenRejectedOrders, markRejectionsSeen,
       users, toggleUserBlock,
       cart, addToCart, removeFromCart, clearCart, cartTotal, cartCount,

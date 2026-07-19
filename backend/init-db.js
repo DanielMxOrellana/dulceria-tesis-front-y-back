@@ -3,14 +3,21 @@
 const { Pool } = require("pg");
 require("dotenv").config();
 
-const pool = new Pool({
-  host: process.env.PGHOST || "localhost",
-  port: Number(process.env.PGPORT || 5432),
-  database: process.env.PGDATABASE || "dulceria",
-  user: process.env.PGUSER || "postgres",
-  password: process.env.PGPASSWORD || "postgres",
-  ssl: (process.env.PGSSLMODE || "disable") === "require" ? { rejectUnauthorized: false } : false,
-});
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    }
+    : {
+      host: process.env.PGHOST || "localhost",
+      port: Number(process.env.PGPORT || 5432),
+      database: process.env.PGDATABASE || "dulceria",
+      user: process.env.PGUSER || "postgres",
+      password: process.env.PGPASSWORD || "postgres",
+      ssl: (process.env.PGSSLMODE || "disable") === "require" ? { rejectUnauthorized: false } : false,
+    }
+);
 
 async function initDatabase() {
   console.log("Conectando a PostgreSQL...");
@@ -38,6 +45,10 @@ async function initDatabase() {
         notes VARCHAR(500),
         total DECIMAL(10, 2) NOT NULL,
         status VARCHAR(20) DEFAULT 'pending',
+        attended_by_id UUID,
+        attended_by_name VARCHAR(100),
+        dispatched_by_id UUID,
+        dispatched_by_name VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -62,6 +73,18 @@ async function initDatabase() {
         unit_price DECIMAL(10, 2) NOT NULL,
         quantity INT NOT NULL DEFAULT 1,
         subtotal DECIMAL(10, 2) NOT NULL
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS order_complaints (
+        id SERIAL PRIMARY KEY,
+        order_id INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        customer_id UUID,
+        reason VARCHAR(255),
+        description TEXT,
+        status VARCHAR(20) DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -114,6 +137,8 @@ async function initDatabase() {
         o.notes,
         o.total,
         o.status,
+        o.attended_by_name,
+        o.dispatched_by_name,
         o.created_at,
         i.id AS item_id,
         i.candy_id,
@@ -151,6 +176,8 @@ async function initDatabase() {
         o.notes,
         o.total,
         o.status,
+        o.attended_by_name,
+        o.dispatched_by_name,
         o.created_at,
         COUNT(DISTINCT i.id) AS items_count,
         COALESCE(SUM(i.quantity), 0) AS items_units,
@@ -182,6 +209,8 @@ async function initDatabase() {
         o.notes,
         o.total,
         o.status,
+        o.attended_by_name,
+        o.dispatched_by_name,
         o.created_at,
         COALESCE(
           json_agg(

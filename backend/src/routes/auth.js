@@ -206,10 +206,11 @@ router.post("/login", async (req, res) => {
     });
 
     if (error) {
+      console.error("Supabase login error:", error);
       if (error.message === 'Email not confirmed') {
         return res.status(401).json({ ok: false, error: "Debes confirmar tu correo electrónico antes de iniciar sesión." });
       }
-      return res.status(401).json({ ok: false, error: "Credenciales incorrectas." });
+      return res.status(401).json({ ok: false, error: "Credenciales incorrectas. Detalles de red en el servidor." });
     }
 
     const userId = data?.user?.id;

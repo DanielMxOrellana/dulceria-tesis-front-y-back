@@ -2,20 +2,39 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ClipboardList, CheckCircle2, XCircle, Truck, X, ChefHat, AlertTriangle } from 'lucide-react';
 import { STATUS_COLORS } from '../data/mockData';
+import { api } from '../services/api';
 
 export default function OrdersAdmin() {
-  const { orders, updateOrderStatus } = useApp();
+  const { orders, updateOrderStatus, complaints, fetchComplaints } = useApp();
+  const [resolvingComplaint, setResolvingComplaint] = useState(false);
+
+  const handleResolveComplaint = async (complaintId, responseStr) => {
+    setResolvingComplaint(true);
+    try {
+      await api.resolveComplaint(complaintId, responseStr);
+      await fetchComplaints();
+      setAdminResponse('');
+    } catch (e) {
+      console.error(e);
+      alert('Error resolviendo el reclamo');
+    }
+    setResolvingComplaint(false);
+  };
   const [filter, setFilter] = useState('todos');
   const [selected, setSelected] = useState(null);
   const [rejectConfirm, setRejectConfirm] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectError, setRejectError] = useState('');
+  const [adminResponse, setAdminResponse] = useState('');
 
-  const filtered = filter === 'todos' ? orders : orders.filter(o => o.status === filter);
+  const filtered = filter === 'todos' ? orders :
+    filter === 'reclamos' ? orders.filter(o => complaints?.find(c => c.order_id === (o.dbId || o.id))) :
+      orders.filter(o => o.status === filter);
 
   const liveSelected = selected ? (orders.find(o => o.id === selected.id) || selected) : null;
 
-  const statusOptions = ['todos', 'aceptado', 'rechazado'];
+  const statusOptions = ['todos', 'aceptado', 'en preparacion', 'entregado', 'rechazado', 'reclamos'];
+
 
   const advanceOrder = (order, status) => updateOrderStatus(order.id, status);
 
@@ -67,7 +86,16 @@ export default function OrdersAdmin() {
                       <td>{o.clientName}</td>
                       <td style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>{o.items.length} productos</td>
                       <td style={{ fontWeight: 600 }}>${o.total.toFixed(2)}</td>
-                      <td><span className={`badge ${STATUS_COLORS[o.status] || 'badge-gray'}`}>{o.status}</span></td>
+                      <td>
+                        <span className={`badge ${STATUS_COLORS[o.status] || 'badge-gray'}`}>{o.status}</span>
+                        {(() => {
+                          const ac = complaints?.find(c => c.order_id === (o.dbId || o.id));
+                          if (ac && ac.status === 'open') {
+                            return <span className="badge" style={{ backgroundColor: 'var(--danger)', color: 'white', display: 'block', marginTop: 4, padding: '2px 6px', fontSize: '0.65rem', width: 'fit-content' }}>Reclamo abierto</span>;
+                          }
+                          return null;
+                        })()}
+                      </td>
                       <td style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>{o.date}</td>
                     </tr>
                   ))}
@@ -90,6 +118,45 @@ export default function OrdersAdmin() {
 
             <div style={{ marginBottom: 18 }}>
               <span className={`badge ${STATUS_COLORS[liveSelected.status] || 'badge-gray'}`}>{liveSelected.status}</span>
+              {(() => {
+                const ac = complaints?.find(c => c.order_id === (liveSelected.dbId || liveSelected.id));
+                if (ac) {
+                  return (
+                    <div style={{ background: ac.status === 'open' ? '#fdecea' : '#e6f4ea', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginTop: 12, color: ac.status === 'open' ? 'var(--danger)' : '#1e8e3e', fontSize: '0.85rem' }}>
+                      <p style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0, fontWeight: 700 }}>
+                        <AlertTriangle size={14} />
+                        {ac.status === 'open' ? 'Reclamo en revisión' : 'Reclamo resuelto'}
+                      </p>
+                      <p style={{ margin: '4px 0 2px', fontWeight: 600 }}>{ac.reason}</p>
+                      <p style={{ margin: '0 0 12px', color: ac.status === 'open' ? 'var(--danger)' : '#1e8e3e' }}>{ac.description}</p>
+                      {ac.status === 'open' && (
+                        <div>
+                          <textarea
+                            rows={2}
+                            value={adminResponse}
+                            onChange={(e) => setAdminResponse(e.target.value)}
+                            placeholder="Escribe tu resolución al cliente..."
+                            style={{ width: '100%', padding: '8px', marginBottom: '8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--danger)', background: 'white', color: 'var(--gray-700)', fontSize: '0.85rem', resize: 'vertical' }}
+                          />
+                          <button
+                            className="btn btn-sm"
+                            style={{ borderColor: 'currentColor', color: 'currentColor' }}
+                            onClick={() => handleResolveComplaint(ac.id, adminResponse)}
+                            disabled={resolvingComplaint || !adminResponse.trim()}
+                          >
+                            Marcar como Resuelto
+                          </button>
+                        </div>
+                      )}
+                      {ac.status === 'resolved' && ac.admin_response && (
+                        <div style={{ marginTop: 8, padding: '8px', background: 'rgba(255,255,255,0.6)', borderRadius: 'var(--radius-sm)', color: '#14682c' }}>
+                          <strong style={{ display: 'block', marginBottom: 2 }}>Tu resolución:</strong> {ac.admin_response}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+              })()}
             </div>
 
             {liveSelected.status === 'rechazado' && liveSelected.rejectionReason && (
@@ -147,6 +214,20 @@ export default function OrdersAdmin() {
                 <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginBottom: 2 }}>Empaque</p>
                 <p style={{ fontWeight: 600 }}>{liveSelected.packaging.nombre}</p>
                 <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>Incluye hasta ${liveSelected.packaging.precio.toFixed(2)} en dulces</p>
+              </div>
+            )}
+
+            {liveSelected.attendedByName && (
+              <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18 }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginBottom: 2 }}>Atendido por (Preparación)</p>
+                <p style={{ fontWeight: 600 }}>{liveSelected.attendedByName}</p>
+              </div>
+            )}
+
+            {liveSelected.dispatchedByName && (
+              <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 18 }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginBottom: 2 }}>Despachado por (Entrega)</p>
+                <p style={{ fontWeight: 600 }}>{liveSelected.dispatchedByName}</p>
               </div>
             )}
 

@@ -467,6 +467,10 @@ router.get("/", async (req, res) => {
             total,
             status,
             rejection_reason,
+            attended_by_id,
+            attended_by_name,
+            dispatched_by_id,
+            dispatched_by_name,
             created_at
           FROM orders
           ${userId ? "WHERE user_id = ?" : ""}
@@ -542,6 +546,10 @@ router.get("/", async (req, res) => {
           total: Number(order.TOTAL ?? order.total ?? 0),
           status: order.STATUS ?? order.status,
           rejectionReason: order.REJECTION_REASON ?? order.rejection_reason,
+          attendedById: order.ATTENDED_BY_ID ?? order.attended_by_id,
+          attendedByName: order.ATTENDED_BY_NAME ?? order.attended_by_name,
+          dispatchedById: order.DISPATCHED_BY_ID ?? order.dispatched_by_id,
+          dispatchedByName: order.DISPATCHED_BY_NAME ?? order.dispatched_by_name,
           userId: order.USER_ID ?? order.user_id,
           createdAt: order.CREATED_AT ?? order.created_at,
           items: items
@@ -726,8 +734,17 @@ router.put("/:id/status", async (req, res) => {
         }
       }
 
+      const attendedById = req.body?.attendedById;
+      const attendedByName = req.body?.attendedByName;
+      const dispatchedById = req.body?.dispatchedById;
+      const dispatchedByName = req.body?.dispatchedByName;
+
       if (nextStatus === "rejected") {
         await query(conn, "UPDATE orders SET status = ?, rejection_reason = ? WHERE id = ?", [nextStatus, rejectionReason, orderId]);
+      } else if (nextStatus === "preparado" && attendedById && attendedByName) {
+        await query(conn, "UPDATE orders SET status = ?, attended_by_id = ?, attended_by_name = ? WHERE id = ?", [nextStatus, attendedById, attendedByName, orderId]);
+      } else if (nextStatus === "delivered" && dispatchedById && dispatchedByName) {
+        await query(conn, "UPDATE orders SET status = ?, dispatched_by_id = ?, dispatched_by_name = ? WHERE id = ?", [nextStatus, dispatchedById, dispatchedByName, orderId]);
       } else {
         await query(conn, "UPDATE orders SET status = ? WHERE id = ?", [nextStatus, orderId]);
       }
@@ -749,6 +766,94 @@ router.put("/:id/status", async (req, res) => {
       return res.status(404).json({ ok: false, error: message });
     }
     return res.status(500).json({ ok: false, error: message || "No se pudo actualizar el estado" });
+  }
+});
+
+router.get("/:id/complaints", async (req, res) => {
+  const orderId = Number(req.params.id);
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    return res.status(400).json({ ok: false, error: "ID de pedido invalido" });
+  }
+
+  try {
+    const rows = await withConnection(conn =>
+      query(conn, "SELECT id, order_id, customer_id, reason, description, status, admin_response, created_at FROM order_complaints WHERE order_id = ? ORDER BY created_at DESC", [orderId])
+    );
+    const mapped = rows.map(r => ({
+      id: r.ID ?? r.id,
+      order_id: r.ORDER_ID ?? r.order_id,
+      customer_id: r.CUSTOMER_ID ?? r.customer_id,
+      reason: r.REASON ?? r.reason,
+      description: r.DESCRIPTION ?? r.description,
+      status: r.STATUS ?? r.status,
+      admin_response: r.ADMIN_RESPONSE ?? r.admin_response,
+      created_at: r.CREATED_AT ?? r.created_at
+    }));
+    return res.json({ ok: true, complaints: mapped });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+router.post("/:id/complaints", async (req, res) => {
+  const orderId = Number(req.params.id);
+  const { customerId, reason, description } = req.body;
+
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    return res.status(400).json({ ok: false, error: "ID de pedido invalido" });
+  }
+  if (!reason || !description) {
+    return res.status(400).json({ ok: false, error: "Razón y descripción son obligatorios" });
+  }
+
+  try {
+    const result = await withConnection(conn =>
+      query(
+        conn,
+        "INSERT INTO order_complaints (order_id, customer_id, reason, description) VALUES (?, ?, ?, ?) RETURNING id",
+        [orderId, customerId || null, String(reason).trim(), String(description).trim()]
+      )
+    );
+    return res.status(201).json({ ok: true, id: result[0]?.id });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+router.get("/complaints/all", async (req, res) => {
+  try {
+    const rows = await withConnection(conn =>
+      query(conn, "SELECT id, order_id, customer_id, reason, description, status, admin_response, created_at FROM order_complaints ORDER BY created_at DESC")
+    );
+    const mapped = rows.map(r => ({
+      id: r.ID ?? r.id,
+      order_id: r.ORDER_ID ?? r.order_id,
+      customer_id: r.CUSTOMER_ID ?? r.customer_id,
+      reason: r.REASON ?? r.reason,
+      description: r.DESCRIPTION ?? r.description,
+      status: r.STATUS ?? r.status,
+      admin_response: r.ADMIN_RESPONSE ?? r.admin_response,
+      created_at: r.CREATED_AT ?? r.created_at
+    }));
+    return res.json({ ok: true, complaints: mapped });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+router.put("/complaints/:id/resolve", async (req, res) => {
+  const complaintId = Number(req.params.id);
+  const { adminResponse } = req.body;
+  if (!Number.isInteger(complaintId) || complaintId <= 0) {
+    return res.status(400).json({ ok: false, error: "ID de reclamo invalido" });
+  }
+
+  try {
+    await withConnection(conn =>
+      query(conn, "UPDATE order_complaints SET status = 'resolved', admin_response = ? WHERE id = ?", [adminResponse || null, complaintId])
+    );
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
   }
 });
 
