@@ -37,7 +37,7 @@ export default function InventoryAdmin() {
 
   const renderSection = ({ title, items, icon: Icon, color, badgeClass }) => (
     <div className="card" style={{ marginBottom: 20 }}>
-         <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <Icon size={18} color={color} />
         <h3 style={{ fontSize: '1rem', color }}>{title}</h3>
         <span className={`badge ${badgeClass}`} style={{ marginLeft: 'auto' }}>{items.length}</span>
@@ -46,12 +46,12 @@ export default function InventoryAdmin() {
         <div className="empty-state" style={{ padding: '30px' }}><p>Sin productos en esta categoría</p></div>
       ) : (
         <div className="table-container">
-          <table>
+          <table className="responsive-table">
             <thead><tr><th>Producto</th><th>Categoría</th><th>Stock Actual</th><th>Mín. Requerido</th><th>Actualizar Stock</th></tr></thead>
             <tbody>
               {items.map(p => (
                 <tr key={p.id}>
-                  <td>
+                  <td data-label="Producto">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ width: 44, height: 44, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
                         <img src={p.image && (p.image.startsWith('http') || p.image.startsWith('data:') ? p.image : encodeURI(p.image))}
@@ -62,12 +62,12 @@ export default function InventoryAdmin() {
                       <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</span>
                     </div>
                   </td>
-                  <td>{p.category}</td>
-                  <td>
+                  <td data-label="Categoría">{p.category}</td>
+                  <td data-label="Stock Actual">
                     <span className={`badge ${badgeClass}`}>{p.stock} und.</span>
                   </td>
-                  <td style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>{p.minStock} und.</td>
-                  <td>
+                  <td data-label="Mín. Requerido" style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>{p.minStock} und.</td>
+                  <td data-label="Actualizar Stock">
                     {editing === p.id ? (
                       <div style={{ display: 'grid', gap: 6, minWidth: 220 }}>
                         <input
@@ -110,7 +110,7 @@ export default function InventoryAdmin() {
 
       {error && <div className="card" style={{ padding: 14, marginBottom: 18, color: 'var(--danger)' }}>{error}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
+      <div className="inventory-stats-grid">
         {[
           { label: 'Sin stock', value: outOfStock.length, bg: '#fdecea', color: 'var(--danger)', icon: XCircle },
           { label: 'Stock bajo', value: lowStock.length, bg: '#fef8e7', color: '#c17d00', icon: AlertTriangle },

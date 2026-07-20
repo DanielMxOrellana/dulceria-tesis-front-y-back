@@ -60,7 +60,7 @@ export default function CatalogPage() {
           <p>No encontramos productos con ese criterio</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18 }}>
+        <div className="catalog-grid">
           {filtered.map(p => (
             <div key={p.id} className="card catalog-product-card" style={{ cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', height: '100%' }}
               onClick={() => openDetail(p)}
@@ -99,12 +99,12 @@ export default function CatalogPage() {
       {detail && (
         <div className="modal-overlay" onClick={() => setDetail(null)}>
           <div className="modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-            <div style={{ background: 'linear-gradient(135deg, var(--pink-100), var(--brown-100))', padding: '18px', height: 280, borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0', marginTop: -32, marginLeft: -32, marginRight: -32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="catalog-modal-header" style={{ background: 'linear-gradient(135deg, var(--pink-100), var(--brown-100))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img
                 src={getImageSrc(detail.image)}
                 alt={detail.name}
                 onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             </div>
             <div style={{ marginTop: 20 }}>

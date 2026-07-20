@@ -111,7 +111,7 @@ export default function NewOrderProductsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 18, alignItems: 'start' }}>
+        <div className="responsive-grid-stack-reverse" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 18, alignItems: 'start' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 16 }}>
             {filtered.map(p => {
               const item = inCart(p.id);
@@ -177,27 +177,28 @@ export default function NewOrderProductsPage() {
                 const atStockLimit = !canAddMore(item.productId, item.qty);
                 const atBudgetLimit = !fitsInBudget(item.price);
                 return (
-                <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
-                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <button onClick={() => updateQty(item, -1)} className="btn btn-secondary btn-sm" style={{ width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={12} /></button>
-                    <span style={{ fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                    <button
-                      onClick={() => updateQty(item, 1)}
-                      className="btn btn-secondary btn-sm"
-                      style={{ width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (atStockLimit || atBudgetLimit) ? 0.4 : 1, cursor: (atStockLimit || atBudgetLimit) ? 'not-allowed' : 'pointer' }}
-                      disabled={atStockLimit || atBudgetLimit}
-                      title={atStockLimit ? `Stock máximo (${getProductStock(item.productId)})` : atBudgetLimit ? 'Excede el límite del empaque' : 'Agregar uno'}
-                    >
-                      <Plus size={12} />
+                  <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: '0.88rem', color: 'var(--gray-500)' }}>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <button onClick={() => updateQty(item, -1)} className="btn btn-secondary btn-sm" style={{ width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={12} /></button>
+                      <span style={{ fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
+                      <button
+                        onClick={() => updateQty(item, 1)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (atStockLimit || atBudgetLimit) ? 0.4 : 1, cursor: (atStockLimit || atBudgetLimit) ? 'not-allowed' : 'pointer' }}
+                        disabled={atStockLimit || atBudgetLimit}
+                        title={atStockLimit ? `Stock máximo (${getProductStock(item.productId)})` : atBudgetLimit ? 'Excede el límite del empaque' : 'Agregar uno'}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                    <span style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 55, textAlign: 'right' }}>${(item.price * item.qty).toFixed(2)}</span>
+                    <button onClick={() => removeFromCart(item.productId)} className="btn btn-danger btn-sm" style={{ padding: '4px 6px', lineHeight: 1 }} title="Quitar">
+                      <X size={13} />
                     </button>
                   </div>
-                  <span style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 55, textAlign: 'right' }}>${(item.price * item.qty).toFixed(2)}</span>
-                  <button onClick={() => removeFromCart(item.productId)} className="btn btn-danger btn-sm" style={{ padding: '4px 6px', lineHeight: 1 }} title="Quitar">
-                    <X size={13} />
-                  </button>
-                </div>
-              );})
+                );
+              })
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: '0.88rem', color: 'var(--gray-500)' }}>

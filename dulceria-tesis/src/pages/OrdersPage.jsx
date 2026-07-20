@@ -64,13 +64,13 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 380px' : '1fr', gap: 20 }}>
-        <div className="card">
+      <div className="responsive-grid-stack" style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 380px' : '1fr', gap: 20 }}>
+        <div className={`card ${selectedOrder ? 'hide-on-mobile' : ''}`}>
           <div className="table-container">
             {visibleOrders.length === 0 ? (
               <div className="empty-state"><ClipboardList size={40} /><p>No hay pedidos</p></div>
             ) : (
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -85,16 +85,16 @@ export default function OrdersPage() {
                 <tbody>
                   {visibleOrders.map((order) => (
                     <tr key={order.id} onClick={() => setSelectedOrderId(order.id)} style={{ cursor: 'pointer' }}>
-                      <td><span style={{ fontWeight: 700, color: 'var(--pink-500)' }}>{order.id}</span></td>
-                      <td>
+                      <td data-label="ID"><span style={{ fontWeight: 700, color: 'var(--pink-500)' }}>{order.id}</span></td>
+                      <td data-label="Cliente">
                         <strong>{order.customer?.name || order.clientName}</strong>
                         <p className="text-muted">{order.customer?.phone || 'Sin teléfono'}</p>
                       </td>
-                      <td>{order.customer?.address || 'Sin dirección'}</td>
-                      <td style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>{(order.vendorItems || order.items).length} productos</td>
-                      <td style={{ fontWeight: 600 }}>${order.total.toFixed(2)}</td>
-                      <td><span className={`badge ${STATUS_BADGES[order.status] || 'badge-gray'}`}>{STATUS_LABELS[order.status] || order.status}</span></td>
-                      <td onClick={(event) => event.stopPropagation()}>
+                      <td data-label="Dirección">{order.customer?.address || 'Sin dirección'}</td>
+                      <td data-label="Productos" style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>{(order.vendorItems || order.items).length} productos</td>
+                      <td data-label="Total" style={{ fontWeight: 600 }}>${order.total.toFixed(2)}</td>
+                      <td data-label="Estado"><span className={`badge ${STATUS_BADGES[order.status] || 'badge-gray'}`}>{STATUS_LABELS[order.status] || order.status}</span></td>
+                      <td data-label="Acción" onClick={(event) => event.stopPropagation()}>
                         <select
                           value={order.status}
                           onChange={(event) => applyStatus(order.id, event.target.value)}

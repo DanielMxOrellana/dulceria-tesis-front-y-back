@@ -71,22 +71,22 @@ export default function OrdersAdmin() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 20 }}>
-        <div className="card">
+      <div className="responsive-grid-stack" style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 20 }}>
+        <div className={`card ${selected ? 'hide-on-mobile' : ''}`}>
           <div className="table-container">
             {filtered.length === 0 ? (
               <div className="empty-state"><ClipboardList size={40} /><p>No hay pedidos</p></div>
             ) : (
-              <table>
+              <table className="responsive-table">
                 <thead><tr><th>ID</th><th>Cliente</th><th>Items</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
                 <tbody>
                   {filtered.map(o => (
                     <tr key={o.id} onClick={() => setSelected(o)} style={{ cursor: 'pointer' }}>
-                      <td><span style={{ fontWeight: 700, color: 'var(--pink-500)' }}>{o.id}</span></td>
-                      <td>{o.clientName}</td>
-                      <td style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>{o.items.length} productos</td>
-                      <td style={{ fontWeight: 600 }}>${o.total.toFixed(2)}</td>
-                      <td>
+                      <td data-label="ID"><span style={{ fontWeight: 700, color: 'var(--pink-500)' }}>{o.id}</span></td>
+                      <td data-label="Cliente">{o.clientName}</td>
+                      <td data-label="Items" style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>{o.items.length} productos</td>
+                      <td data-label="Total" style={{ fontWeight: 600 }}>${o.total.toFixed(2)}</td>
+                      <td data-label="Estado">
                         <span className={`badge ${STATUS_COLORS[o.status] || 'badge-gray'}`}>{o.status}</span>
                         {(() => {
                           const ac = complaints?.find(c => c.order_id === (o.dbId || o.id));
@@ -96,7 +96,7 @@ export default function OrdersAdmin() {
                           return null;
                         })()}
                       </td>
-                      <td style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>{o.date}</td>
+                      <td data-label="Fecha" style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>{o.date}</td>
                     </tr>
                   ))}
                 </tbody>

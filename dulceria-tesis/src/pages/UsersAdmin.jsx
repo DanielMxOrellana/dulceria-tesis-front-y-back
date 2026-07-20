@@ -111,7 +111,7 @@ export default function UsersAdmin() {
           {users.length === 0 ? (
             <div className="empty-state"><Users size={40} /><p>No hay usuarios registrados</p></div>
           ) : (
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Usuario</th>
@@ -125,7 +125,7 @@ export default function UsersAdmin() {
               <tbody>
                 {users.map(u => (
                   <tr key={u.id}>
-                    <td>
+                    <td data-label="Usuario">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--primary-dark))', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0 }}>
                           {(u.name || u.full_name || u.email || '?')[0].toUpperCase()}
@@ -133,19 +133,19 @@ export default function UsersAdmin() {
                         <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.name || u.full_name || 'Sin nombre'}</span>
                       </div>
                     </td>
-                    <td style={{ color: 'var(--gray-400)', fontSize: '0.88rem' }}>{u.email}</td>
-                    <td>
+                    <td data-label="Correo" style={{ color: 'var(--gray-400)', fontSize: '0.88rem' }}>{u.email}</td>
+                    <td data-label="Rol">
                       <span style={{ background: ROLE_COLORS[u.role] || ROLE_COLORS.cliente, color: 'var(--gray-700)', padding: '4px 12px', borderRadius: 12, fontSize: '0.82rem', fontWeight: 600, display: 'inline-block' }}>
                         {ROLE_LABELS[u.role]}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--gray-400)', fontSize: '0.82rem' }}>{u.joinDate}</td>
-                    <td>
+                    <td data-label="Fecha de registro" style={{ color: 'var(--gray-400)', fontSize: '0.82rem' }}>{u.joinDate}</td>
+                    <td data-label="Estado">
                       <span className={`badge ${u.status === 'activo' ? 'badge-success' : 'badge-danger'}`}>
                         {u.status}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Acciones">
                       {u.id !== currentUser?.id && (
                         <button
                           className={`btn btn-sm ${u.status === 'activo' ? 'btn-danger' : 'btn-success'}`}

@@ -122,12 +122,12 @@ export default function ProductsAdmin() {
           {filtered.length === 0 ? (
             <div className="empty-state"><Package size={40} /><p>No hay productos</p></div>
           ) : (
-            <table>
+            <table className="responsive-table">
               <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead>
               <tbody>
                 {filtered.map(p => (
                   <tr key={p.id}>
-                    <td>
+                    <td data-label="Producto">
                       <div style={{ width: 44, height: 44, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
                         <img src={p.image && (p.image.startsWith('http') || p.image.startsWith('data:') ? p.image : encodeURI(p.image))}
                           alt={p.name}
@@ -139,11 +139,11 @@ export default function ProductsAdmin() {
                         <p style={{ fontSize: '0.78rem', color: 'var(--gray-400)' }}>{p.description?.slice(0, 40)}</p>
                       </div>
                     </td>
-                    <td>{p.category}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--pink-500)' }}>${p.price.toFixed(2)}</td>
-                    <td><span className={`badge ${stockColor(p)}`}>{p.stock} und.</span></td>
-                    <td><span className={`badge ${p.available ? 'badge-success' : 'badge-danger'}`}>{p.available ? 'Disponible' : 'Agotado'}</span></td>
-                    <td>
+                    <td data-label="Categoría">{p.category}</td>
+                    <td data-label="Precio" style={{ fontWeight: 600, color: 'var(--pink-500)' }}>${p.price.toFixed(2)}</td>
+                    <td data-label="Stock"><span className={`badge ${stockColor(p)}`}>{p.stock} und.</span></td>
+                    <td data-label="Estado"><span className={`badge ${p.available ? 'badge-success' : 'badge-danger'}`}>{p.available ? 'Disponible' : 'Agotado'}</span></td>
+                    <td data-label="Acciones">
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => openEdit(p)}><Pencil size={14} /></button>
                         <button className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(p.id)}><Trash2 size={14} /></button>
@@ -166,7 +166,7 @@ export default function ProductsAdmin() {
               <button onClick={() => setModal(null)} className="btn btn-secondary btn-sm"><X size={16} /></button>
             </div>
             <form onSubmit={save}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+              <div className="responsive-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                 <div className="form-group">
                   <label>Nombre *</label>
                   <input name="name" value={form.name} onChange={handle} required placeholder="Nombre del producto" />
@@ -226,7 +226,7 @@ export default function ProductsAdmin() {
               </button>
             </div>
             <div className="modal-body">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+              <div className="responsive-grid-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
                 <div className="card" style={{ padding: 14 }}>
                   <p style={{ color: 'var(--gray-400)', fontSize: '0.78rem' }}>Stock actual</p>
                   <strong>{stockNoteModal.previousStock}</strong>

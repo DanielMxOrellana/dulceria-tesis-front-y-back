@@ -122,7 +122,7 @@ export default function NewOrderCustomerPage() {
         <Link to="/nuevo-pedido/productos" className="btn btn-secondary"><ArrowLeft size={15} /> Volver a productos</Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.85fr', gap: 24, alignItems: 'start' }}>
+      <div className="responsive-grid-stack-reverse" style={{ display: 'grid', gridTemplateColumns: '1fr 0.85fr', gap: 24, alignItems: 'start' }}>
         <div className="card" style={{ padding: '24px' }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: 16 }}>Datos personales</h3>
 

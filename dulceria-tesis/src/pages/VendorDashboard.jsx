@@ -498,7 +498,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
 
           {error && <div className="form-error">{error}</div>}
 
-          <form onSubmit={handleSubmit} className="vendor-dashboard__product-form">
+          <form onSubmit={handleSubmit} className="vendor-dashboard__product-form responsive-grid-stack">
             <div className="form-group">
               <label>Nombre</label>
               <input value={form.name} onChange={(event) => handleFormChange('name', event.target.value)} placeholder="Ej. Quesitos de manjar" />
@@ -620,7 +620,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                 </div>
               ) : (
                 <div className="table-container" style={{ marginTop: '20px' }}>
-                  <table>
+                  <table className="responsive-table">
                     <thead>
                       <tr>
                         <th>Pedido</th>
@@ -635,7 +635,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                     <tbody>
                       {tabConfig.list.map((order) => (
                         <tr key={order.id}>
-                          <td>
+                          <td data-label="Pedido">
                             <strong>{order.id}</strong>
                             {(() => {
                               const activeComplaint = complaints?.find(c => c.order_id === (order.dbId || order.id));
@@ -649,15 +649,15 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                               return null;
                             })()}
                           </td>
-                          <td>
+                          <td data-label="Cliente">
                             <strong>{order.customer.name}</strong>
                             <p className="text-muted">{order.customer.phone}</p>
                           </td>
-                          <td>{order.vendorItems.length} productos</td>
-                          <td>{money(order.vendorTotal)}</td>
-                          <td><span className={`badge ${STATUS_COLORS[order.status] || 'badge-info'}`}>{order.status}</span></td>
-                          <td>{order.date}</td>
-                          <td>{renderOrderActions(order)}</td>
+                          <td data-label="Productos">{order.vendorItems.length} productos</td>
+                          <td data-label="Total pedido">{money(order.vendorTotal)}</td>
+                          <td data-label="Estado"><span className={`badge ${STATUS_COLORS[order.status] || 'badge-info'}`}>{order.status}</span></td>
+                          <td data-label="Fecha">{order.date}</td>
+                          <td data-label="Acciones">{renderOrderActions(order)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -688,7 +688,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
             </div>
           ) : (
             <div className="table-container">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Producto</th>
@@ -703,7 +703,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                 <tbody>
                   {vendorProducts.map((product) => (
                     <tr key={product.id}>
-                      <td>
+                      <td data-label="Producto">
                         <div className="product-cell">
                           <div className="product-avatar">
                             {product.image?.startsWith('/') || product.image?.startsWith('http') ? (
@@ -718,9 +718,9 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                           </div>
                         </div>
                       </td>
-                      <td>{product.category}</td>
-                      <td>{money(product.price)}</td>
-                      <td>
+                      <td data-label="Categoria">{product.category}</td>
+                      <td data-label="Precio">{money(product.price)}</td>
+                      <td data-label="Stock">
                         <input
                           className="stock-input"
                           type="number"
@@ -735,15 +735,15 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                           }}
                         />
                       </td>
-                      <td>
+                      <td data-label="Stock minimo">
                         <input className="stock-input" type="number" min="0" value={product.minStock} onChange={(event) => handleMinStockChange(product, event.target.value)} />
                       </td>
-                      <td>
+                      <td data-label="Estado">
                         <span className={`badge ${product.stock === 0 ? 'badge-danger' : product.stock <= product.minStock ? 'badge-warning' : 'badge-success'}`}>
                           {product.stock === 0 ? 'Agotado' : product.stock <= product.minStock ? 'Stock bajo' : 'Disponible'}
                         </span>
                       </td>
-                      <td className="actions-cell">
+                      <td data-label="Acciones" className="actions-cell">
                         <button className="btn btn-secondary btn-sm" onClick={() => openEditProductForm(product)}>
                           <Edit3 size={14} /> Editar
                         </button>
@@ -836,7 +836,7 @@ export default function VendorDashboard({ section = 'dashboard' }) {
           {/* Top products table */}
           <h3 style={{ marginTop: 24, marginBottom: 12 }}>Rendimiento de productos</h3>
           <div className="table-container">
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -859,12 +859,12 @@ export default function VendorDashboard({ section = 'dashboard' }) {
                   }, 0);
                   return (
                     <tr key={product.id}>
-                      <td><strong>{product.name}</strong></td>
-                      <td>{soldQty}</td>
-                      <td>{money(revenue)}</td>
-                      <td>{product.stock}</td>
-                      <td>{product.minStock}</td>
-                      <td>
+                      <td data-label="Producto"><strong>{product.name}</strong></td>
+                      <td data-label="Unidades vendidas">{soldQty}</td>
+                      <td data-label="Ingresos">{money(revenue)}</td>
+                      <td data-label="Stock actual">{product.stock}</td>
+                      <td data-label="Stock minimo">{product.minStock}</td>
+                      <td data-label="Estado">
                         <span className={`badge ${product.stock === 0 ? 'badge-danger' : product.stock <= product.minStock ? 'badge-warning' : 'badge-success'}`}>
                           {product.stock === 0 ? 'Agotado' : product.stock <= product.minStock ? 'Stock bajo' : 'Disponible'}
                         </span>

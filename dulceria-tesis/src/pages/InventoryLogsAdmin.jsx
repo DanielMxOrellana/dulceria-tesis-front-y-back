@@ -115,7 +115,7 @@ export default function InventoryLogsAdmin() {
           </div>
         ) : (
           <div className="table-container">
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -135,21 +135,21 @@ export default function InventoryLogsAdmin() {
                   const delta = Number(valueOf(row, 'delta') || 0);
                   return (
                     <tr key={id}>
-                      <td>
+                      <td data-label="Producto">
                         <strong>{valueOf(row, 'candy_name')}</strong>
                         <p className="text-muted">ID {valueOf(row, 'candy_id')}</p>
                       </td>
-                      <td>
+                      <td data-label="Movimiento">
                         <span className={`badge ${delta > 0 ? 'badge-success' : delta < 0 ? 'badge-danger' : 'badge-info'}`}>
                           {valueOf(row, 'movement_type')}
                         </span>
                       </td>
-                      <td>{valueOf(row, 'quantity_before')} -> {valueOf(row, 'quantity_after')} ({delta > 0 ? '+' : ''}{delta})</td>
-                      <td>
+                      <td data-label="Cantidades">{valueOf(row, 'quantity_before')} {"->"} {valueOf(row, 'quantity_after')} ({delta > 0 ? '+' : ''}{delta})</td>
+                      <td data-label="Actor">
                         <strong>{valueOf(row, 'actor_name') || 'Sistema'}</strong>
                         <p className="text-muted">{valueOf(row, 'actor_role')}</p>
                       </td>
-                      <td style={{ minWidth: 220 }}>
+                      <td data-label="Nota">
                         <p>{valueOf(row, 'note')}</p>
                         {status === 'rejected' && valueOf(row, 'rejection_note') && (
                           <p style={{ marginTop: 6, color: 'var(--danger)', fontSize: '0.85rem' }}>
@@ -157,9 +157,9 @@ export default function InventoryLogsAdmin() {
                           </p>
                         )}
                       </td>
-                      <td><span className={`badge ${statusClass[status] || 'badge-gray'}`}>{statusLabel[status] || status}</span></td>
-                      <td>{formatDate(valueOf(row, 'requested_at'))}</td>
-                      <td>
+                      <td data-label="Estado"><span className={`badge ${statusClass[status] || 'badge-gray'}`}>{statusLabel[status] || status}</span></td>
+                      <td data-label="Fecha">{formatDate(valueOf(row, 'requested_at'))}</td>
+                      <td data-label="Acciones">
                         {status === 'pending' ? (
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button className="btn btn-success btn-sm" disabled={processingId === id} onClick={() => approve(id)}>

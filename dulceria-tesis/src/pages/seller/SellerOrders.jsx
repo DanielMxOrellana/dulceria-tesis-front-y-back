@@ -43,7 +43,7 @@ export default function SellerOrders() {
           {vendorOrders.length === 0 ? (
             <div className="empty-state"><p>No tienes pedidos todavía</p></div>
           ) : (
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Pedido</th>
@@ -58,16 +58,16 @@ export default function SellerOrders() {
               <tbody>
                 {vendorOrders.map((order) => (
                   <tr key={order.id}>
-                    <td>{order.id}</td>
-                    <td>
+                    <td data-label="Pedido">{order.id}</td>
+                    <td data-label="Cliente">
                       <strong>{order.customer?.name || order.clientName}</strong>
                       <p className="text-muted">{order.customer?.phone || 'Sin teléfono'}</p>
                     </td>
-                    <td>{order.customer?.address || 'Sin dirección'}</td>
-                    <td>{order.vendorItems.length}</td>
-                    <td>${order.total.toFixed(2)}</td>
-                    <td><span className={`badge ${ORDER_BADGES[order.status] || 'badge-info'}`}>{ORDER_LABELS[order.status] || order.status}</span></td>
-                    <td>
+                    <td data-label="Dirección">{order.customer?.address || 'Sin dirección'}</td>
+                    <td data-label="Productos">{order.vendorItems.length}</td>
+                    <td data-label="Total">${order.total.toFixed(2)}</td>
+                    <td data-label="Estado"><span className={`badge ${ORDER_BADGES[order.status] || 'badge-info'}`}>{ORDER_LABELS[order.status] || order.status}</span></td>
+                    <td data-label="Acción">
                       <div className="actions-cell">
                         {order.status === 'pendiente' && (
                           <>

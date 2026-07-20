@@ -49,7 +49,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
         {stats.map(s => (
           <Link to={s.to} key={s.label} className="stat-card" style={{ textDecoration: 'none' }}>
             <div className="stat-icon" style={{ background: s.color }}>
@@ -63,39 +63,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20 }}>
-        {/* Recent orders */}
-        <div className="card">
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.05rem' }}>Pedidos Recientes</h3>
-            <Link to="/admin/pedidos" className="btn btn-secondary btn-sm">Ver todos</Link>
-          </div>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Cliente</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                  <th>Fecha</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map(o => (
-                  <tr key={o.id}>
-                    <td><span style={{ fontWeight: 600, color: 'var(--pink-500)' }}>{o.id}</span></td>
-                    <td>{o.clientName}</td>
-                    <td>${o.total.toFixed(2)}</td>
-                    <td><span className={`badge ${STATUS_COLORS[o.status] || 'badge-gray'}`}>{o.status}</span></td>
-                    <td style={{ color: 'var(--gray-400)', fontSize: '0.82rem' }}>{o.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
+      <div className="dashboard-grid">
         {/* Pending actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card" style={{ padding: '20px' }}>
@@ -138,6 +106,38 @@ export default function AdminDashboard() {
                 <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--pink-500)' }}>${p.price.toFixed(2)}</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Recent orders */}
+        <div className="card">
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '1.05rem' }}>Pedidos Recientes</h3>
+            <Link to="/admin/pedidos" className="btn btn-secondary btn-sm">Ver todos</Link>
+          </div>
+          <div className="table-container">
+            <table className="responsive-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Cliente</th>
+                  <th>Total</th>
+                  <th>Estado</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentOrders.map(o => (
+                  <tr key={o.id}>
+                    <td data-label="ID"><span style={{ fontWeight: 600, color: 'var(--pink-500)' }}>{o.id}</span></td>
+                    <td data-label="Cliente">{o.clientName}</td>
+                    <td data-label="Total">${o.total.toFixed(2)}</td>
+                    <td data-label="Estado"><span className={`badge ${STATUS_COLORS[o.status] || 'badge-gray'}`}>{o.status}</span></td>
+                    <td data-label="Fecha" style={{ color: 'var(--gray-400)', fontSize: '0.82rem' }}>{o.date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

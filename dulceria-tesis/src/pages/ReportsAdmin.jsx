@@ -48,7 +48,7 @@ export default function ReportsAdmin() {
         <div><h1>Reportes</h1><p>Análisis del negocio</p></div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
+      <div className="inventory-stats-grid">
         {[
           { label: 'Ingresos totales', value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign },
           { label: 'Total pedidos', value: totalOrders, icon: ClipboardList },
@@ -64,7 +64,7 @@ export default function ReportsAdmin() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="responsive-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
         {/* Revenue chart */}
         <div className="card" style={{ padding: 24 }}>
           <h3 style={{ fontSize: '1rem', marginBottom: 20 }}>Ingresos por día</h3>
@@ -126,7 +126,7 @@ export default function ReportsAdmin() {
                     <p style={{ fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
                     <p style={{ color: 'var(--pink-500)', fontWeight: 700, fontSize: '0.85rem' }}>{p.qty} vendidos</p>
                   </div>
-                  <span style={{ marginLeft: 'auto', flexShrink: 0, width: 26, height: 26, background: i < 3 ? 'var(--pink-500)' : 'var(--gray-200)', color: i < 3 ? 'white' : 'var(--gray-400)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>#{i+1}</span>
+                  <span style={{ marginLeft: 'auto', flexShrink: 0, width: 26, height: 26, background: i < 3 ? 'var(--pink-500)' : 'var(--gray-200)', color: i < 3 ? 'white' : 'var(--gray-400)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>#{i + 1}</span>
                 </div>
               );
             })}

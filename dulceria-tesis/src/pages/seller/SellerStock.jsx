@@ -19,7 +19,7 @@ export default function SellerStock() {
           {vendorProducts.length === 0 ? (
             <div className="empty-state"><p>No tienes productos publicados</p></div>
           ) : (
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -32,18 +32,18 @@ export default function SellerStock() {
               <tbody>
                 {vendorProducts.map((product) => (
                   <tr key={product.id}>
-                    <td>
+                    <td data-label="Producto">
                       <strong>{product.name}</strong>
                       <p className="text-muted">{product.category}</p>
                     </td>
-                    <td>{product.stock}</td>
-                    <td>{product.minStock}</td>
-                    <td>
+                    <td data-label="Stock actual">{product.stock}</td>
+                    <td data-label="Stock mínimo">{product.minStock}</td>
+                    <td data-label="Estado">
                       <span className={`badge ${product.stock === 0 ? 'badge-danger' : product.stock <= product.minStock ? 'badge-warning' : 'badge-success'}`}>
                         {product.stock === 0 ? 'Agotado' : product.stock <= product.minStock ? 'Bajo' : 'Normal'}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Ajustar">
                       <div className="actions-cell">
                         <button className="btn btn-secondary btn-sm" onClick={() => updateStock(product.id, Math.max(0, product.stock - 1))}>-1</button>
                         <button className="btn btn-secondary btn-sm" onClick={() => updateStock(product.id, product.stock + 1)}>+1</button>

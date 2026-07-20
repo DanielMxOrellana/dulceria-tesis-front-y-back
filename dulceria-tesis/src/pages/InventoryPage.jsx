@@ -20,18 +20,18 @@ export default function InventoryPage() {
 
   const renderRows = (items) => items.map((product) => (
     <tr key={product.id}>
-      <td>
+      <td data-label="Producto">
         <strong>{product.name}</strong>
         <p className="text-muted">{product.category}</p>
       </td>
-      <td>{product.stock}</td>
-      <td>{product.minStock}</td>
-      <td>
+      <td data-label="Stock">{product.stock}</td>
+      <td data-label="Mínimo">{product.minStock}</td>
+      <td data-label="Estado">
         <span className={`badge ${product.stock === 0 ? 'badge-danger' : product.stock <= product.minStock ? 'badge-warning' : 'badge-success'}`}>
           {product.stock === 0 ? 'Agotado' : product.stock <= product.minStock ? 'Bajo' : 'Normal'}
         </span>
       </td>
-      <td>
+      <td data-label="Ajustar">
         <div className="actions-cell">
           <input
             type="number"
@@ -82,7 +82,7 @@ export default function InventoryPage() {
           {outOfStock.length === 0 ? (
             <div className="empty-state" style={{ padding: '28px 20px' }}><p>No hay productos agotados</p></div>
           ) : (
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -108,7 +108,7 @@ export default function InventoryPage() {
           {lowStock.length === 0 ? (
             <div className="empty-state" style={{ padding: '28px 20px' }}><p>No hay alertas activas</p></div>
           ) : (
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -134,7 +134,7 @@ export default function InventoryPage() {
           {okStock.length === 0 ? (
             <div className="empty-state" style={{ padding: '28px 20px' }}><p>No hay productos en estado normal</p></div>
           ) : (
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Producto</th>
