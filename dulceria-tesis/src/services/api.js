@@ -1,11 +1,9 @@
 const API_URL = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admin20003';
 
-export const hasApi = Boolean(API_URL);
+export const hasApi = true; // allow relative empty string proxy setups
 
 async function request(path, options = {}) {
-  if (!hasApi) return null;
-
   let sessionUser = null;
   try {
     sessionUser = JSON.parse(localStorage.getItem('dulceria_session') || 'null');
